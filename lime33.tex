@@ -380,6 +380,100 @@ python lime33_adapter_panel.py -d 1 --issuer A
 \end{itemize}
 
 \newpage
+
+\section{การพัฒนากลยุทธ์เตือนภัยขั้นสูง 6 รูปแบบ (Advanced 6-Strategy Detection Framework)}
+
+\subsection{1. ที่มาและปัญหาของเกณฑ์ตรวจวัดงวดเดียว (Snapshot Limitation)}
+
+จากการทดสอบเบื้องต้นบนชุดข้อมูล 941 บริษัท การใช้เกณฑ์ตัดความน่าจะเป็น ณ จุดตัดเวลาล่าสุดเพียงงวดเดียว (Single-Snapshot) ให้ค่า Recall เพียง $41.9\%$ เนื่องจากข้อจำกัด 2 ประการหลัก:
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{การเกิดวิกฤตในอดีตที่ผ่านการฟื้นฟูแล้ว (Resolved Historical Cases)}: บริษัทที่เคยปรับโครงสร้างหนี้ในอดีต (เช่น \ft{THAI}, \ft{EA}, \ft{ITD}) เมื่อผ่านกระบวนการยืดหนี้หรือเพิ่มทุนแล้ว ตัวเลขงบการเงินในงวดปัจจุบันจะฟื้นตัวกลับสู่เกณฑ์ปกติ
+  \item \textbf{การเบียดบังคิวตรวจจากหุ้นขนาดเล็ก (mai Small-Cap Crowding Out)}: หุ้นขนาดเล็กใน mai ที่มีสภาพคล่องการซื้อขายต่ำมากและมีผลขาดทุนสะสม จะถูกดึงขึ้นมาอยู่หัวแถวของคิวตรวจ ทำให้เบียดบังบริษัทขนาดใหญ่ในกลุ่มผู้ออกตราสารหนี้
+\end{enumerate}
+
+เพื่อแก้ไขปัญหาดังกล่าว ระบบจึงได้พัฒนากลยุทธ์การตรวจจับและคัดกรองความเสี่ยงขึ้นเป็น \textbf{6 รูปแบบ (6 Detection Strategies)} ดังนี้:
+
+\subsection{2. นิยามและรายละเอียดของกลยุทธ์ทั้ง 6 รูปแบบ}
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{กลยุทธ์ที่ 1: การตรวจวัดแบบตัดงวดเดียวทั้งตลาด (Baseline Single-Snapshot Pooled 941)} \\
+  รวบรวมทุกบริษัทในตลาดทั้ง 941 บริษัทเข้าเป็นกลุ่มเดียวกัน คำนวณค่า PD ณ จุดตัดงวดล่าสุดงวดเดียว แล้วตัดเกณฑ์ Review Threshold ที่ $5\%$ ($\text{PD} \ge 0.127681$) ร่วมกับเกณฑ์งบดุล Method C
+  
+  \item \textbf{กลยุทธ์ที่ 2: การตรวจวัดแบบแยกกลุ่มตลาด (Segmented Single-Snapshot Models)} \\
+  แบ่งประชากรออกเป็น 2 กลุ่มย่อยอย่างชัดเจน:
+  \begin{itemize}
+    \item \textbf{กลุ่มที่ 1: บริษัทผู้ออกตราสารหนี้ (Bond Issuers -- SET/iBond)}: 711 บริษัท กำหนดเกณฑ์ $\text{Threshold}_{5\%} = 0.080360$
+    \item \textbf{กลุ่มที่ 2: บริษัทขนาดเล็ก mai / Non-Bond}: 230 บริษัท กำหนดเกณฑ์ $\text{Threshold}_{5\%} = 0.182064$
+  \end{itemize}
+  ช่วยป้องกันไม่ให้ความผันผวนของหุ้นเล็ก mai มาเบียดบังโควตาตรวจสอบของกลุ่มตราสารหนี้
+  
+  \item \textbf{กลยุทธ์ที่ 3: การตรวจวัดแบบสแกนสะสมต่อเนื่อง 12 เดือน (Rolling 12-Month Window Pooled)} \\
+  สแกนย้อนหลัง Trailing 12 Months $[T-11, T]$ หากบริษัทใดเคยมีค่าความเสี่ยงสูงติดคิวตรวจในเดือนใดเดือนหนึ่งในรอบ 12 เดือน ให้รักษาสถานะเตือนภัยต่อเนื่อง (Persistent Distress Alert) เพื่อดักจับบริษัทที่กำลังอยู่ระหว่างการเจรจาปรับโครงสร้างหนี้
+  
+  \item \textbf{กลยุทธ์ที่ 4: การผสานการแยกกลุ่มและสแกนสะสม 12 เดือน (Segmented + Rolling 12-Month Window) [กลยุทธ์แนะนำ]} \\
+  ผสานการตัดเกณฑ์เฉพาะกลุ่ม (Segmented Thresholds) ร่วมกับการสแกนสะสม 12 เดือน ให้ความสมดุลสูงสุดระหว่าง Recall และ Precision สามารถตรวจจับเคสสำคัญระดับประเทศได้ครอบคลุม
+  
+  \item \textbf{กลยุทธ์ที่ 5: การสแกนสะสมเต็มรอบวัฏจักรหนี้ 24 เดือน (Segmented + Rolling 24-Month Window -- Full Debt Cycle)} \\
+  ขยายหน้าต่างสแกนสะสมเป็น 24 เดือน $[T-23, T]$ เพื่อรองรับกระบวนการปรับโครงสร้างหนี้ระยะยาว (Debt Rehabilitation Cycle) ซึ่งสามารถดักจับเคสขนาดใหญ่ที่มีการยืดอายุหนี้ 1--2 ปี เช่น \ft{EA} และ \ft{RICHY}
+  
+  \item \textbf{กลยุทธ์ที่ 6: การตรวจจับตามเส้นขอบฟ้าล่วงหน้าก่อนเกิดเหตุจริง (Dynamic Lead-Time Horizon 12 Months Prior to Event)} \\
+  ตรวจวัดย้อนกลับ ณ ช่วงเวลา 12 เดือนก่อนหน้าที่แต่ละบริษัทจะเกิดเหตุการณ์จริงในอดีต ($T_{\text{event}} - 12$ ถึง $T_{\text{event}} + 3$) เพื่อประเมินความสามารถที่แท้จริงของแบบจำลองในการเตือนภัยล่วงหน้าก่อนเกิดวิกฤตจริง
+\end{enumerate}
+
+\subsection{3. ตารางเปรียบเทียบผลการทดสอบเชิงประจักษ์ (Empirical Benchmark Results)}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{กลยุทธ์การตรวจจับความเสี่ยง (Strategy)} & \textbf{บริษัทที่เตือน} & \textbf{ตรวจจับรวม} & \textbf{Recall รวม} & \textbf{Precision} & \textbf{ตรวจจับหุ้นกู้} & \textbf{Recall หุ้นกู้} \\
+\midrule
+1. Snapshot งวดเดียว (Baseline Pooled) & 87 บริษัท & 13 / 31 & 41.9\% & 14.9\% & 10 / 24 & 41.7\% \\
+2. Snapshot แยกกลุ่ม (Segmented) & 86 บริษัท & 14 / 31 & 45.2\% & 16.3\% & 11 / 24 & 45.8\% \\
+3. Rolling 12 เดือน (Pooled) & 223 บริษัท & 23 / 31 & 74.2\% & 10.3\% & 18 / 24 & 75.0\% \\
+\rowcolor{softgrey} \textbf{4. Segmented + Rolling 12M (แนะนำ)} & \textbf{243 บริษัท} & \textbf{24 / 31} & \textbf{77.4\%} & \textbf{9.9\%} & \textbf{19 / 24} & \textbf{79.2\%} \\
+\rowcolor{softgrey} \textbf{5. Segmented + Rolling 24M (เต็มรอบหนี้)} & \textbf{300 บริษัท} & \textbf{26 / 31} & \textbf{83.9\%} & \textbf{8.7\%} & \textbf{21 / 24} & \textbf{87.5\%} \\
+6. Dynamic Lead-Time (12 ด. ก่อนเกิดเหตุ) & 241 บริษัท & 22 / 31 & 71.0\% & 9.1\% & 20 / 24 & 83.3\% \\
+\bottomrule
+\end{tabular}
+\caption{ผลการประเมินความแม่นยำเปรียบเทียบกลยุทธ์ทั้ง 6 รูปแบบบนฐานข้อมูล 941 บริษัท}
+\label{tab:six_strategies_comp}
+\end{table}
+
+\subsection{4. แผนผังการทำงานของทั้ง 6 กลยุทธ์ (Comprehensive Architecture Flowchart)}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=0.75cm and 0.9cm,
+  box/.style={rectangle, rounded corners=3pt, draw=navyblue, fill=softgrey, text width=4.8cm, align=center, inner sep=4pt, font=\scriptsize},
+  proc/.style={box, fill=white, draw=accentblue, line width=0.8pt},
+  dec/.style={diamond, aspect=2, draw=alertred, fill=white, inner sep=2pt, font=\tiny, align=center},
+  outp/.style={box, fill=white, draw=normalgreen, line width=0.9pt},
+  ar/.style={-{Stealth[length=2.2mm]}, line width=0.7pt, draw=navyblue}
+]
+  \node[proc] (input) {\textbf{1. ข้อมูลนำเข้า (Input Panel)}\\941 บริษัท (187,007 firm-months)};
+  \node[box, below=of input] (seg) {\textbf{2. จำแนกกลุ่มประชากร (Segmentation)}\\กลุ่มที่ 1: Bond Issuers (711 บริษัท)\\กลุ่มที่ 2: Small-Cap mai (230 บริษัท)};
+  \node[proc, below=of seg] (oof) {\textbf{3. Stratified Group OOF Model}\\คำนวณ Out-of-fold PD และ Method C};
+
+  \node[proc, below left=1.0cm and -0.2cm of oof] (snap) {\textbf{4.1 Snapshot Engine}\\ตัดเกณฑ์งวดเดี่ยว $T$\\Threshold 5\% (Pooled / Seg)};
+  \node[proc, below right=1.0cm and -0.2cm of oof] (roll) {\textbf{4.2 Rolling Dynamic Engine}\\สแกนสะสม Trailing $T-11$ หรือ $T-23$\\ดักจับ Resolved / Restructure Cases};
+
+  \node[outp, below=2.8cm of oof] (final) {\textbf{5. ระบบแจ้งเตือนและอธิบายผล XAI}\\- รายงาน Excel Multi-sheet ลงโฟลเดอร์ \ft{output/}\\- กราฟิก 3 แผง (Repeated LIME + Exact SHAP + SD)};
+
+  \draw[ar] (input) -- (seg);
+  \draw[ar] (seg) -- (oof);
+  \draw[ar] (oof) -| (snap);
+  \draw[ar] (oof) -| (roll);
+  \draw[ar] (snap) |- (final);
+  \draw[ar] (roll) |- (final);
+\end{tikzpicture}
+\caption{แผนผังโครงสร้างสถาปัตยกรรมการตรวจจับความเสี่ยงและอธิบายผลทั้ง 6 รูปแบบ}
+\label{fig:six_strategies_flowchart}
+\end{figure}
+
 \section{บัญชีรายชื่อทั้ง 941 บริษัทและความครบถ้วนของข้อมูล (941-Firm Directory)}
 
 ตารางแสดงรายชื่อบริษัททั้งหมด 941 บริษัทในตลาดทุนไทยที่มีอยู่ในตาราง \ft{ibond_33features_panel_941firm} ช่วงเวลาข้อมูลเริ่มต้น--สิ้นสุด จำนวนเดือนที่มีการบันทึก เปอร์เซ็นต์ความครบถ้วนของ 30 ตัวแปรหลัก และประวัติการเกิดวิกฤต/การปรับโครงสร้างหนี้:
