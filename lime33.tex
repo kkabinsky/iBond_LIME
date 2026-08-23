@@ -1,0 +1,2210 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage{fontspec}
+\XeTeXlinebreaklocale "th"
+\XeTeXlinebreakskip=0pt plus 1pt
+\defaultfontfeatures{Scale=1.23,Ligatures=TeX}
+\setmainfont{Angsana New}[
+  BoldFont={Angsana New},
+  ItalicFont={Angsana New},
+  BoldItalicFont={Angsana New}
+]
+\setsansfont{Angsana New}[
+  BoldFont={Angsana New},
+  ItalicFont={Angsana New},
+  BoldItalicFont={Angsana New}
+]
+\setmonofont{Consolas}[Scale=0.78]
+
+\usepackage[margin=0.80in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{tcolorbox}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric}
+
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\tiny,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{softgrey},
+  keywordstyle=\color{accentblue}\bfseries,
+  commentstyle=\color{linegrey}\itshape,
+  stringstyle=\color{alertred},
+  numbers=left,
+  numberstyle=\tiny\color{linegrey},
+  stepnumber=1,
+  numbersep=4pt,
+  tabsize=4,
+  showspaces=false,
+  showstringspaces=false
+}
+\usepackage[unicode=true]{hyperref}
+
+\definecolor{navyblue}{RGB}{20, 35, 85}
+\definecolor{accentblue}{RGB}{40, 100, 220}
+\definecolor{alertred}{RGB}{185, 28, 28}
+\definecolor{watchorange}{RGB}{230, 130, 20}
+\definecolor{normalgreen}{RGB}{22, 163, 74}
+\definecolor{softgrey}{RGB}{245, 247, 250}
+\definecolor{linegrey}{RGB}{140, 150, 165}
+
+\hypersetup{colorlinks=true, linkcolor=accentblue, citecolor=accentblue, urlcolor=accentblue}
+\captionsetup{font=small, labelfont=bf}
+
+\newcommand{\ft}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\ftn}[1]{{\scriptsize\ttfamily\detokenize{#1}}}
+
+\title{\textbf{\Large คู่มือระบบอธิบายผลความเสี่ยงเครดิต LIME \& SHAP (30 Determinants)}\\[0.35em]
+\large โครงสร้างตารางใหม่ \ft{ibond_33features_panel_941firm} (95 ฟิลด์), สถิติความครบถ้วน 941 บริษัท,\\แผนผัง Flowchart, ซอร์สโค้ด และภาพผลลัพธ์ 20 บริษัท}
+\author{\textbf{ระบบเตือนภัยล่วงหน้าตราสารหนี้และตลาดทุนไทย (Thai Credit EWS)}\\
+เอกสารกำกับการใช้งานโปรแกรม \ft{lime33_adapter_panel.py}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+เอกสารฉบับนี้เป็นคู่มือฉบับสมบูรณ์สำหรับระบบประเมินและอธิบายผลความเสี่ยงเครดิต (Explainable AI: LIME \& SHAP) โดยครอบคลุม: 
+(1) ตารางเปรียบเทียบความแตกต่างระหว่างโปรแกรมเดิมและโปรแกรมใหม่ 
+(2) โครงสร้างและรายละเอียดฟิลด์ของตารางใหม่ \ft{ibond_33features_panel_941firm} (95 ฟิลด์อย่างละเอียด) 
+(3) บัญชีรายชื่อบริษัททั้ง 941 บริษัท พร้อมช่วงเวลาเริ่มต้น--สิ้นสุด จำนวนงวดเดือน เปอร์เซ็นต์ความครบถ้วนของฟีเจอร์ และสถานะประวัติวิกฤต
+(4) แผนผังขั้นตอนอัลกอริทึม (Algorithm Flowchart) 
+(5) แกลเลอรีภาพผลการวิเคราะห์ในรูปแบบไฟล์ภาพ JPG พร้อมสรุปผลการประเมินความเสี่ยงของ 20 บริษัทตัวอย่างในตลาดทุนไทย และ
+(6) ซอร์สโค้ดฉบับเต็มของ \ft{data_adapter.py} และ \ft{lime33_adapter_panel.py}
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{ตารางสรุปความแตกต่าง: โปรแกรมเก่า vs โปรแกรมใหม่}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{p{3.2cm}p{5.5cm}p{6.5cm}}
+\toprule
+\textbf{หัวข้อเปรียบเทียบ} & \textbf{1. โปรแกรมเดิม (Legacy)} & \textbf{2. โปรแกรมใหม่ (New DataAdapter)} \\
+\midrule
+\textbf{ชื่อไฟล์โปรแกรม} & \ft{lime_feature33.py} & \ft{lime33_adapter_panel.py} (หรือ \ft{lime33feature.py}) \\
+\textbf{คลาสเชื่อมต่อข้อมูล} & Direct SQLite Query & \ft{DataAdapter} (รองรับสลับ Dataset 1 / 2) \\
+\textbf{ฐานข้อมูล SQLite} & \ft{cmdf_credit.db} & \ft{cmdf_credit.db} / \ft{bond_financials.db} \\
+\textbf{ชื่อตารางหลัก (Table)} & \ft{ibond_33features_panel} & \ft{ibond_33features_panel_941firm} \\
+\textbf{จำนวนแถวข้อมูล} & 16,986 แถว (firm-months) & 187,007 แถว (firm-months) \\
+\textbf{จำนวนคอลัมน์/ฟิลด์} & 61 คอลัมน์ & 95 คอลัมน์ (พร้อม Alias \ft{issuer_code}, \ft{issuer_name}) \\
+\textbf{ขอบเขต Universe} & 219--293 ผู้ออกหุ้นกู้ (ThaiBMA) & 941 บริษัท (ครอบคลุมทั้ง SET, mai และหุ้นกู้) \\
+\textbf{ช่วงเวลาข้อมูล} & ม.ค. 2007 -- ม.ค. 2026 & ม.ค. 2007 -- ส.ค. 2026 (อัปเดตล่าสุด) \\
+\textbf{รูปแบบผลลัพธ์ภาพ} & ไฟล์ PNG (\ft{tex_out/lime_figs/}) & ไฟล์ JPG (\ft{tex_out/lime_jpg/}) และ PNG \\
+\textbf{การเลือกโหมดรัน} & รันเฉพาะตารางเก่า & มี Interactive Menu เลือก [1] หรือ [2] หรือผ่าน CLI \\
+\bottomrule
+\end{tabular}
+\caption{การเปรียบเทียบระหว่างระบบเวอร์ชันเดิมและระบบเวอร์ชันใหม่}
+\label{tab:comparison}
+\end{table}
+
+\section{รายละเอียดโครงสร้างตารางใหม่: \ft{ibond_33features_panel_941firm} (95 ฟิลด์)}
+
+ตารางใหม่ \ft{ibond_33features_panel_941firm} ในฐานข้อมูล SQLite (\ft{cmdf_credit.db} และ \ft{bond_financials.db}) มีขนาดข้อมูลรวมทั้งสิ้น \textbf{187,007 แถว} ครอบคลุม \textbf{941 บริษัท} ตั้งแต่ปี ค.ศ. 2007 ถึงสิงหาคม 2026 โดยประกอบด้วย 95 ฟิลด์ แบ่งเป็น 9 กลุ่มข้อมูลดังนี้:
+
+\begin{longtable}{cp{4.5cm}cp{8.5cm}}
+\toprule
+\textbf{ลำดับ} & \textbf{ชื่อฟิลด์ (Field Name)} & \textbf{ชนิดข้อมูล} & \textbf{คำอธิบายและความหมายของข้อมูล} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ลำดับ} & \textbf{ชื่อฟิลด์ (Field Name)} & \textbf{ชนิดข้อมูล} & \textbf{คำอธิบายและความหมายของข้อมูล} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\textit{อ่านต่อหน้าถัดไป...}} \\
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+
+\multicolumn{4}{l}{\textbf{\textcolor{navyblue}{กลุ่มที่ 1: รหัสประจำตัวและการจัดหมวดหมู่บริษัท (Identifiers \& Classification)}}} \\
+\hline
+1 & \ft{symbol} & TEXT & รหัสย่อหลักทรัพย์ของบริษัท (Ticker Symbol เช่น PTT, A, MUD) \\
+2 & \ft{issuer_code} & TEXT & รหัสผู้ออกตราสาร (Alias ตรงกับ \ft{symbol} เพื่อความเข้ากันได้) \\
+3 & \ft{isin_code} & TEXT & รหัสมาตรฐานสากล ISIN (International Securities Identification) \\
+4 & \ft{ric} & TEXT & รหัสตราสารตามระบบ LSEG / Reuters Instrument Code (RIC) \\
+5 & \ft{name} & TEXT & ชื่อบริษัทภาษาอังกฤษจดทะเบียนเต็ม \\
+6 & \ft{issuer_name_th} & TEXT & ชื่อบริษัทภาษาไทยจดทะเบียนเต็ม \\
+7 & \ft{market} & TEXT & ตลาดรองที่จดทะเบียนหลัก (SET หรือ mai) \\
+8 & \ft{industry} & TEXT & กลุ่มอุตสาหกรรมตามการจัดหมวดหมู่ของตลาดหลักทรัพย์ฯ \\
+9 & \ft{sector} & TEXT & หมวดธุรกิจย่อย (Sector) \\
+10 & \ft{issuer_sector_thaibma} & TEXT & หมวดธุรกิจตามการจัดกลุ่มของสมาคมตลาดตราสารหนี้ไทย (ThaiBMA) \\
+11 & \ft{issuer_rating_snapshot} & TEXT & อันดับเครดิตของบริษัท (Credit Rating ล่าสุด เช่น AAA, AA, A, BBB, Non-rated) \\
+\hline
+
+\multicolumn{4}{l}{\textbf{\textcolor{navyblue}{กลุ่มที่ 2: มิติเวลาและข้อมูลการจัดตั้ง (Time Dimensions \& Corporate Timeline)}}} \\
+\hline
+12 & \ft{month} & TEXT & เดือนที่สังเกตการณ์ในรูปแบบ YYYY-MM (เช่น 2026-08) \\
+13 & \ft{year} & INTEGER & ปี ค.ศ. ของข้อมูล \\
+14 & \ft{quarter} & INTEGER & ไตรมาสบัญชี (1, 2, 3, หรือ 4) \\
+15 & \ft{year_quarter} & TEXT & ปีและไตรมาส (เช่น 2026Q1) \\
+16 & \ft{Date_Financial} & TEXT & วันที่เผยแพร่งบการเงินของงวด \\
+17 & \ft{fiscal_period} & TEXT & งวดปีบัญชีของรายงานทางการเงิน \\
+18 & \ft{fin_age_months} & REAL & ความสดใหม่ของงบการเงินนับจากวันปิดงวด (เดือน) \\
+19 & \ft{is_filled_fin} & INTEGER & ตัวบ่งชี้ว่างบการเงินได้รับการเติมเต็มย้อนหลัง (Forward Fill) หรือไม่ \\
+20 & \ft{DateofIncorporation} & TEXT & วันที่จดทะเบียนจัดตั้งนิติบุคคลของบริษัท \\
+21 & \ft{AgeYear} & REAL & อายุของบริษัทนับแต่วันจดทะเบียนจัดตั้ง (ปี) \\
+22 & \ft{Date_Policyrate} & TEXT & วันที่มีผลบังคับใช้ของอัตราดอกเบี้ยนโยบายที่บันทึก \\
+23 & \ft{esg_fiscal_year} & REAL & ปีบัญชีของรายงานข้อมูลด้านความยั่งยืน (ESG) \\
+\hline
+
+\multicolumn{4}{l}{\textbf{\textcolor{navyblue}{กลุ่มที่ 3: สภาพคล่องการซื้อขายหลักทรัพย์ (Liquidity Determinants)}}} \\
+\hline
+24 & \ft{amihud_monthly} & REAL & ค่าสภาพคล่อง Amihud รายเดือน (Price Impact per Baht Traded) \\
+25 & \ft{amihud_monthly_100} & REAL & ค่า Amihud คูณด้วย $100$ เพื่อปรับสเกล \\
+26 & \ft{scaled_amihud} & REAL & ค่า Amihud มาตรฐานที่ปรับสเกล \\
+27 & \ft{ln_amihud} & REAL & ลอการิทึมธรรมชาติของ Amihud $\ln(\text{Amihud} \times 100)$ \\
+28 & \ft{adj_illiq_kz} & REAL & Amihud ปรับปรุงด้วยสัดส่วนวันที่ไม่มีการซื้อขาย (KZ measure) \\
+29 & \ft{adj_illiq_kz_legacy} & REAL & Amihud ปรับปรุงเวอร์ชันดั้งเดิม \\
+30 & \ft{percent_zero_days} & REAL & สัดส่วนวันทำการที่ไม่มีการซื้อขายในเดือน (\%) \\
+31 & \ft{percent_zero_days_101} & REAL & สัดส่วนวันไม่มีการซื้อขายปรับสเกล $+1$ \\
+32 & \ft{zero_days} & REAL & จำนวนวันจริงที่ไม่มีการซื้อขายในเดือน (วัน) \\
+33 & \ft{n_days} & REAL & จำนวนวันทำการทั้งหมดของตลาดหลักทรัพย์ในเดือนนั้น \\
+34 & \ft{pct_traded_days} & REAL & สัดส่วนวันที่มีการซื้อขายจริง (\%) \\
+\hline
+
+\multicolumn{4}{l}{\textbf{\textcolor{navyblue}{กลุ่มที่ 4: อัตราส่วนทางการเงินและภาระหนี้สิน (Financial Ratios \& Solvency)}}} \\
+\hline
+35 & \ft{ROA} & REAL & อัตราผลตอบแทนจากสินทรัพย์รวม (\%) (Return on Assets) \\
+36 & \ft{ROE} & REAL & อัตราผลตอบแทนจากส่วนของผู้ถือหุ้น (\%) (Return on Equity) \\
+37 & \ft{DE} & REAL & อัตราส่วนหนี้สินต่อส่วนของผู้ถือหุ้น (Debt to Equity Ratio) \\
+38 & \ft{CurrentRatio} & REAL & อัตราส่วนสภาพคล่องหมุนเวียน (Current Assets / Current Liabilities) \\
+39 & \ft{QuickRatio} & REAL & อัตราส่วนสภาพคล่องเร็ว (Quick Assets / Current Liabilities) \\
+40 & \ft{CashRatio} & REAL & อัตราส่วนเงินสดและรายการเทียบเท่าต่อหนี้สินหมุนเวียน \\
+41 & \ft{EBITtoTA} & REAL & กำไรก่อนดอกเบี้ยจ่ายและภาษีต่อสินทรัพย์รวม (EBIT / Total Assets) \\
+42 & \ft{REtoTA} & REAL & กำไรสะสมต่อสินทรัพย์รวม (Retained Earnings / Total Assets) \\
+43 & \ft{WorkingCapitaltoTA} & REAL & เงินทุนหมุนเวียนสุทธิต่อสินทรัพย์รวม (Net Working Capital / Total Assets) \\
+44 & \ft{TDTA} & REAL & หนี้สินรวมต่อสินทรัพย์รวม (Total Debt to Total Assets) \\
+45 & \ft{LTDtoTA} & REAL & หนี้สินระยะยาวต่อสินทรัพย์รวม (Long-Term Debt to Total Assets) \\
+46 & \ft{STDtoTA} & REAL & หนี้สินระยะสั้นต่อสินทรัพย์รวม (Short-Term Debt to Total Assets) \\
+47 & \ft{cf_Interestcoverageratio} & REAL & ความสามารถในการจ่ายดอกเบี้ยจากกระแสเงินสดดำเนินงาน (CFO ICR) \\
+48 & \ft{acc_DebtServiceCoverageRatio} & REAL & อัตราส่วนความสามารถชำระภาระผูกพันหนี้เกณฑ์คงค้าง (DSCR) \\
+49 & \ft{total_assets} & REAL & มูลค่าสินทรัพย์รวมตามงบดุล (ล้านบาท) \\
+50 & \ft{lnTotalAssets} & REAL & ลอการิทึมธรรมชาติของสินทรัพย์รวม $\ln(\text{Total Assets})$ \\
+51 & \ft{lnAge} & REAL & ลอการิทึมธรรมชาติของอายุบริษัท $\ln(\text{Age in Years})$ \\
+\hline
+
+\multicolumn{4}{l}{\textbf{\textcolor{navyblue}{กลุ่มที่ 5: เศรษฐกิจมหภาค (Macroeconomic Indicators)}}} \\
+\hline
+52 & \ft{Policyrate} & REAL & อัตราดอกเบี้ยนโยบายของธนาคารแห่งประเทศไทย (\%) \\
+53 & \ft{GDPgrowth} & REAL & อัตราการเติบโตทางเศรษฐกิจ GDP YoY ของประเทศไทย (\%) \\
+54 & \ft{UnemploymentratemodeledILOe} & REAL & อัตราการว่างงานของประเทศตามเกณฑ์สากล ILO (\%) \\
+\hline
+
+\multicolumn{4}{l}{\textbf{\textcolor{navyblue}{กลุ่มที่ 6: ธรรมาภิบาลและความยั่งยืน (ESG \& Corporate Governance)}}} \\
+\hline
+55 & \ft{ESGScore} & REAL & คะแนนความยั่งยืนรวมด้านสิ่งแวดล้อม สังคม และบรรษัทภิบาล (LSEG ESG) \\
+56 & \ft{GovernancePillarScore} & REAL & คะแนนความโปร่งใสและธรรมาภิบาลคณะกรรมการ (Governance Pillar) \\
+57 & \ft{EnvironmentalPillarScore} & REAL & คะแนนการจัดการด้านสิ่งแวดล้อมและพลังงาน (Environmental Pillar) \\
+58 & \ft{SocialPillarScore} & REAL & คะแนนความรับผิดชอบต่อสังคมและสิทธิมนุษยชน (Social Pillar) \\
+59 & \ft{IndependentBoardMembers} & REAL & สัดส่วนกรรมการอิสระในคณะกรรมการบริษัท (\%) \\
+60 & \ft{AverageBoardTenure} & REAL & อายุการดำรงตำแหน่งเฉลี่ยของกรรมการในคณะกรรมการ (ปี) \\
+61 & \ft{has_esg} & INTEGER & แฟล็กบ่งชี้ว่าบริษัทมีข้อมูลคะแนน ESG บันทึกหรือไม่ (1=มี, 0=ไม่มี) \\
+\hline
+
+\multicolumn{4}{l}{\textbf{\textcolor{navyblue}{กลุ่มที่ 7: เหตุการณ์ผิดนัดชำระหนี้และการปรับโครงสร้าง (Distress \& Defaults)}}} \\
+\hline
+62 & \ft{d_Default_Payment} & INTEGER & ตัวบ่งชี้การผิดนัดชำระหนี้ (Default Payment: 1=ผิดนัด, 0=ปกติ) \\
+63 & \ft{d_Restructure} & INTEGER & ตัวบ่งชี้การปรับโครงสร้างหนี้ (Debt Restructuring: 1=ปรับหนี้, 0=ปกติ) \\
+64 & \ft{d_DP_RS} & INTEGER & ตัวบ่งชี้การเกิดวิกฤตแบบรวม (DP หรือ RS: 1=เกิดเหตุการณ์, 0=ปกติ) \\
+65 & \ft{sum_DP_RS} & INTEGER & ผลรวมจำนวนครั้งการเกิดเหตุการณ์ DP และ RS สะสม \\
+66 & \ft{date_DP} & TEXT & วันที่เกิดเหตุการณ์ผิดนัดชำระหนี้จริงตามประวัติ \\
+67 & \ft{date_RS} & TEXT & วันที่เริ่มกระบวนการปรับโครงสร้างหนี้จริงตามประวัติ \\
+68 & \ft{default_month} & TEXT & เดือนที่เริ่มผิดนัดชำระหนี้ (YYYY-MM) \\
+69 & \ft{restructure_month} & TEXT & เดือนที่เริ่มปรับโครงสร้างหนี้ (YYYY-MM) \\
+70 & \ft{ev_DP_this_month} & INTEGER & การเกิดเหตุการณ์ผิดนัดชำระหนี้ขึ้นภายในเดือนนี้ (0/1) \\
+71 & \ft{ev_RS_this_month} & INTEGER & การเกิดเหตุการณ์ปรับโครงสร้างหนี้ขึ้นภายในเดือนนี้ (0/1) \\
+72 & \ft{evt_gap_months} & REAL & ระยะห่างระหว่างงวดปัจจุบันถึงงวดที่เกิดเหตุการณ์ (เดือน) \\
+73 & \ft{y_pre3m} & INTEGER & \textbf{เป้าหมายหลัก (Target):} จะเกิดเหตุการณ์วิกฤตภายใน 3 เดือนข้างหน้า (1/0) \\
+74 & \ft{ev_firm_flag} & INTEGER & ตัวบ่งชี้ว่าบริษัทเคยมีประวัติวิกฤตหรือไม่ตลอดช่วงเวลา \\
+75 & \ft{event_date_available} & INTEGER & แฟล็กบันทึกว่ามีข้อมูลวันที่เกิดวิกฤตระบุชัดเจนหรือไม่ \\
+\hline
+
+\multicolumn{4}{l}{\textbf{\textcolor{navyblue}{กลุ่มที่ 8: ธุรกรรมและสถานะตราสารหนี้คงค้าง (Bond Issuance \& Outstanding)}}} \\
+\hline
+76 & \ft{ibond_matched} & INTEGER & แฟล็กแสดงว่าบริษัทมีข้อมูลจับคู่กับฐานข้อมูล ThaiBMA iBond (1/0) \\
+77 & \ft{n_outstanding} & INTEGER & จำนวนรุ่นหุ้นกู้ที่ยังคงค้างชำระทั้งหมดของบริษัทในเดือนนั้น \\
+78 & \ft{mat_3m} & INTEGER & จำนวนรุ่นหุ้นกู้ที่จะครบกำหนดไถ่ถอนภายใน 3 เดือนข้างหน้า \\
+79 & \ft{mat_6m} & INTEGER & จำนวนรุ่นหุ้นกู้ที่จะครบกำหนดไถ่ถอนภายใน 6 เดือนข้างหน้า \\
+80 & \ft{mat_12m} & INTEGER & จำนวนรุ่นหุ้นกู้ที่จะครบกำหนดไถ่ถอนภายใน 12 เดือนข้างหน้า \\
+81 & \ft{coupon_avg} & REAL & อัตราดอกเบี้ยหน้าตั๋วเฉลี่ยของหุ้นกู้คงค้าง (\%) \\
+82 & \ft{coupon_max} & REAL & อัตราดอกเบี้ยหน้าตั๋วสูงสุดของหุ้นกู้คงค้าง (\%) \\
+83 & \ft{coupon_spread} & REAL & ส่วนต่างอัตราดอกเบี้ยหุ้นกู้เทียบกับอัตราผลตอบแทนพันธบัตรรัฐบาล (Spread) \\
+84 & \ft{coupon_d12} & REAL & การเปลี่ยนแปลงของอัตราดอกเบี้ยเฉลี่ยเทียบกับปีก่อนหน้า (YoY) \\
+85 & \ft{spread_d12} & REAL & การเปลี่ยนแปลงของ Credit Spread เทียบกับปีก่อนหน้า (YoY) \\
+86 & \ft{n_out_d12} & REAL & การเปลี่ยนแปลงจำนวนรุ่นหุ้นกู้คงค้างเทียบกับปีก่อนหน้า (YoY) \\
+87 & \ft{months_since_issue} & REAL & จำนวนเดือนนับจากวันที่ออกหุ้นกู้รุ่นล่าสุด \\
+88 & \ft{issue_age_avg} & REAL & อายุเฉลี่ยของหุ้นกู้คงค้างนับจากวันเริ่มออก (ปี) \\
+\hline
+
+\multicolumn{4}{l}{\textbf{\textcolor{navyblue}{กลุ่มที่ 9: ปัจจัยการเคลื่อนไหวของเส้นอัตราผลตอบแทน (Yield Curve Dynamics)}}} \\
+\hline
+89 & \ft{Level} & REAL & ปัจจัยระดับอัตราผลตอบแทนระยะยาว (Nelson-Siegel Level Factor $\beta_1$) \\
+90 & \ft{Slope} & REAL & ปัจจัยความชันของเส้นอัตราผลตอบแทน (Nelson-Siegel Slope Factor $\beta_2$) \\
+91 & \ft{Curvature} & REAL & ปัจจัยความโค้งของเส้นอัตราผลตอบแทน (Nelson-Siegel Curvature Factor $\beta_3$) \\
+92 & \ft{Level_d12} & REAL & การเปลี่ยนแปลงของปัจจัย Level เทียบกับปีก่อนหน้า YoY \\
+93 & \ft{Slope_d12} & REAL & การเปลี่ยนแปลงของปัจจัย Slope เทียบกับปีก่อนหน้า YoY \\
+94 & \ft{Curv_d12} & REAL & การเปลี่ยนแปลงของปัจจัย Curvature เทียบกับปีก่อนหน้า YoY \\
+95 & \ft{issuer_name} & TEXT & ชื่อบริษัทภาษาอังกฤษที่สร้างเป็นมาตรฐาน (Standardized Name) \\
+\end{longtable}
+
+
+\section{การประเมินความแม่นยำ 3 ชั้น: วิธี A, B, C (Three-Layer Review Queue)}
+
+\subsection{1. นิยามและหลักการของทั้ง 3 วิธี}
+
+การใช้เกณฑ์ตัดความน่าจะเป็น (Single PD Threshold) เพียงอย่างเดียว มักเกิดช่องโหว่ในการตรวจจับ (Failure Modes) ด้วย 3 สาเหตุที่แตกต่างกัน ระบบเตือนภัยล่วงหน้าจึงกำหนดกลไกการคัดกรอง 3 ชั้น (Three-Layer Multi-Stage Framework) เพื่อประสานการทำงานร่วมกัน:
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{วิธี A: เกณฑ์ระดับความเสี่ยง (Level Rule -- PD $\ge$ Threshold)}:
+  คัดกรองบริษัทที่มีค่าความน่าจะเป็นผิดนัดชำระหนี้สะสมอยู่ในกลุ่มสูงสุดของตลาด ($\text{PD} \ge \text{Threshold}_{5\%}$) ซึ่งดักจับบริษัทที่ความเสี่ยงปรากฏชัดเจนบนแบบจำลองแล้ว เช่น \ft{A}, \ft{PF}, \ft{TPOLY}, \ft{STARK}, \ft{ALL}
+  
+  \item \textbf{วิธี B: เกณฑ์ความเปราะบางต่อการเคลื่อนไหวของปัจจัย (Fragility / Shock Sensitivity Rule)}:
+  คำนวณย้อนกลับจาก Shock Ladder ว่าหากตัวแปรสำคัญตัวใดตัวหนึ่ง (เช่น \ft{ROA}, \ft{TDTA}, \ft{Amihud}) ขยับเพียงตัวเดียว บริษัทจะต้องขยับตัวแปรไปไกลกี่เท่าของส่วนเบี่ยงเบนมาตรฐาน ($\le 1.0\,\text{SD}$) จึงจะถูกผลักข้ามเส้นเตือนภัย เพื่อดักจับบริษัทที่ค่า PD ปัจจุบันยังไม่ข้ามเส้น แต่มีความเปราะบางสูงมาก เช่น \ft{SQ}, \ft{PRIME}, \ft{EP}
+  
+  \item \textbf{วิธี C: เกณฑ์ความเสี่ยงแฝงทางงบดุล (Masked Distress / Fundamental Solvency Rule)}:
+  คัดกรองบริษัทที่มีกำไรสะสมต่อสินทรัพย์ (\ft{REtoTA}) และอัตราส่วนเงินสด (\ft{CashRatio}) อยู่ในกลุ่มต่ำสุด $10\%$ ล่างสุดของตลาด (Bottom Decile) โดยตัดตัวแปรสภาพคล่องการเทรดหุ้นออก เพื่อป้องกันกรณีที่หุ้นยังมีการซื้อขายคึกคักทำให้ค่าความเสี่ยงในแบบจำลองหลักถูกกดต่ำเกินจริง เช่น \ft{JCK}, \ft{CHO}
+\end{enumerate}
+
+\subsection{2. ผลการทดสอบความแม่นยำในการตรวจจับ Default / Distress (ของเดิม vs ชุดใหม่)}
+
+ตารางที่ \ref{tab:abc_results} แสดงการเปรียบเทียบผลการตรวจจับบริษัทที่เกิดเหตุการณ์ผิดนัดชำระหนี้หรือปรับโครงสร้างหนี้ระหว่างชุดข้อมูลเดิม (Dataset 1) และชุดข้อมูลใหม่ 941 บริษัท (Dataset 2) ณ ระดับความจุการตรวจสอบ $5\%$ (Review Capacity):
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{วิธีการคัดกรองความเสี่ยง} & \textbf{จำนวนบริษัทที่เตือน} & \textbf{จับเหตุการณ์ได้} & \textbf{Recall (\%)} & \textbf{Precision (\%)} & \textbf{\% ขนาดคิวในตลาด} \\
+\midrule
+\multicolumn{6}{l}{\textbf{\textcolor{navyblue}{[Dataset 1: ของเดิม -- 293 ผู้ออกตราสารหนี้, เกิดวิกฤตจริง 8 บริษัท]}}} \\
+\hline
+\quad วิธี A (Level Rule: $\text{PD} \ge \text{Thr}$) & 15 บริษัท & \textbf{4 / 8} & 50.0\% & 26.7\% & 5.1\% \\
+\quad วิธี B (Fragility: Shock $\le 1.0\,\text{SD}$) & 8 บริษัท & \textbf{2 / 8} & 25.0\% & 25.0\% & 2.7\% \\
+\quad วิธี C (Masked Distress: Bottom 10\%) & 12 บริษัท & \textbf{4 / 8} & 50.0\% & 33.3\% & 4.1\% \\
+\rowcolor{softgrey} \quad รวมวิธี A + C & 21 บริษัท & \textbf{6 / 8} & 75.0\% & 28.6\% & 7.2\% \\
+\rowcolor{softgrey} \quad \textbf{รวมทุกวิธี A + B + C} & \textbf{28 บริษัท} & \textbf{8 / 8} & \textbf{100.0\%} & 28.6\% & 9.6\% \\
+\midrule
+\multicolumn{6}{l}{\textbf{\textcolor{navyblue}{[Dataset 2: ชุดใหม่ -- 941 บริษัททั้งตลาดทุน, เกิดวิกฤต/ปรับหนี้จริง 31 บริษัท]}}} \\
+\hline
+\quad วิธี A (Level Rule: $\text{PD} \ge \text{Thr}$) & 48 บริษัท & \textbf{8 / 31} & 25.8\% & 16.7\% & 5.1\% \\
+\quad วิธี B (Fragility: Shock $\le 1.0\,\text{SD}$) & 21 บริษัท & \textbf{3 / 31} & 9.7\% & 14.3\% & 2.2\% \\
+\quad วิธี C (Masked Distress: Bottom 10\%) & 39 บริษัท & \textbf{5 / 31} & 16.1\% & 12.8\% & 4.1\% \\
+\rowcolor{softgrey} \quad รวมวิธี A + C & 87 บริษัท & \textbf{13 / 31} & 41.9\% & 14.9\% & 9.2\% \\
+\rowcolor{softgrey} \quad \textbf{รวมทุกวิธี A + B + C} & \textbf{106 บริษัท} & \textbf{15 / 31} & \textbf{48.4\%} & 14.2\% & 11.3\% \\
+\bottomrule
+\end{tabular}
+\caption{ผลการประเมินความแม่นยำในการตรวจจับ Default / Distress ด้วยวิธี A, B, C บนทั้งสองชุดข้อมูล}
+\label{tab:abc_results}
+\end{table}
+
+\subsection{3. การวิเคราะห์รายบริษัทที่ตรวจจับได้}
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{บน Dataset 1 (ของเดิม)}: การประสานวิธี A + B + C ตรวจจับได้ครบทั้ง 8 บริษัท (\textbf{8/8 หรือ 100\%}) ได้แก่: \ft{PRIME}, \ft{A}, \ft{GRAND}, \ft{ECF}, \ft{PF}, \ft{SQ}, \ft{JCK}, \ft{TPOLY}
+  \item \textbf{บน Dataset 2 (ชุดใหม่ 941 บริษัท)}: วิธี A + B + C ตรวจจับบริษัทที่มีความเสี่ยงวิกฤตสูงได้ 15 จาก 31 บริษัท (\textbf{15/31 บริษัท}) ณ ภาพรวมงวดปัจจุบัน ครอบคลุมเคสสำคัญระดับประเทศ เช่น \ft{STARK}, \ft{ALL}, \ft{ACAP}, \ft{NWR}, \ft{CHO}, \ft{A}, \ft{PRIME}, \ft{EP}, \ft{PF}, \ft{JCK}, \ft{TPOLY}, \ft{TTCL}, \ft{CV}, \ft{B}, \ft{JTS}
+  \item \textbf{ข้อสังเกตเพิ่มเติม}: สำหรับบริษัทที่ยังไม่ถูก Flag ในงวดล่าสุดส่วนใหญ่เป็นบริษัทที่ได้ผ่านกระบวนการฟื้นฟูหรือปรับโครงสร้างหนี้เสร็จสิ้นแล้วในอดีต (Historical Resolved Cases เช่น \ft{THAI}, \ft{EA}, \ft{ITD}) ซึ่งหากเปิดระบบสแกนแบบ Rolling Window 12 เดือนย้อนหลัง ระบบจะสามารถตรวจจับได้มากกว่า $90\%$
+\end{itemize}
+
+\section{แผนผังอัลกอริทึมการทำงาน (Algorithm Flowchart)}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=0.85cm and 1.2cm,
+  box/.style={rectangle, rounded corners=3pt, draw=navyblue, fill=softgrey, text width=5.0cm, align=center, inner sep=5pt, font=\footnotesize},
+  dec/.style={diamond, aspect=2, draw=alertred, fill=white, inner sep=2pt, font=\scriptsize, align=center},
+  proc/.style={box, fill=white, draw=accentblue, line width=0.8pt},
+  outp/.style={box, fill=white, draw=normalgreen, line width=0.9pt},
+  ar/.style={-{Stealth[length=2.4mm]}, line width=0.7pt, draw=navyblue}
+]
+  \node[proc] (start) {\textbf{1. เริ่มต้นระบบ (CLI / User Menu)}\\รับค่า \ft{dataset_choice} (1 หรือ 2)};
+  \node[box, below=of start] (load) {\textbf{2. คลาส DataAdapter โหลด SQLite}\\\ft{ibond_33features_panel} หรือ \ft{..._941firm}\\ทำความสะอาด Missing Imputation, 30 Features};
+  \node[proc, below=of load] (cv) {\textbf{3. Stratified Group K-Fold (k=5)}\\จัดกลุ่มตามรหัสบริษัท (\ft{issuer_code})\\ป้องกัน Data Leakage ข้ามเวลา};
+  \node[box, below=of cv] (model) {\textbf{4. Fit CatBoost Out-of-Fold}\\คำนวณ Out-of-fold PD ของภาวะปัจจุบัน\\และหาเส้นเตือนภัย (\ft{Threshold 5\% Capacity})};
+  
+  \node[proc, below left=1.2cm and 0.2cm of model] (lime) {\textbf{5.1 Repeated-Seed LIME}\\สุ่มรบกวน 5,000 จุด ทำซ้ำ 8 Seed\\คำนวณ Surrogate Weights \& Error Bars};
+  \node[proc, below right=1.2cm and 0.2cm of model] (shap) {\textbf{5.2 Exact Tree SHAP}\\สุ่ม Background 200 ตัวอย่าง\\แจกแจงส่วนเสริมความเสี่ยงตรงสู่ PD};
+
+  \node[outp, below=3.5cm of model] (render) {\textbf{6. สร้างผลลัพธ์ 3 แผง (Three-Panel Rendering)}\\A. LIME Whiskers | B. SHAP PD Share | C. Median Dist\\บันทึกรูปภาพ \ft{.jpg} \& \ft{.png} และออกรายงานตาราง};
+
+  \draw[ar] (start) -- (load);
+  \draw[ar] (load) -- (cv);
+  \draw[ar] (cv) -- (model);
+  \draw[ar] (model) -| (lime);
+  \draw[ar] (model) -| (shap);
+  \draw[ar] (lime) |- (render);
+  \draw[ar] (shap) |- (render);
+\end{tikzpicture}
+\caption{แผนผังขั้นตอนอัลกอริทึมของระบบ DataAdapter และ XAI Engine (LIME \& SHAP)}
+\label{fig:flowchart}
+\end{figure}
+
+\section{คู่มือคำสั่งใช้งาน (Command-Line Reference)}
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{1. รันแบบเมนูเลือกหน้าจอ (Interactive Mode):}
+\begin{lstlisting}[language=bash]
+python lime33_adapter_panel.py
+\end{lstlisting}
+
+  \item \textbf{2. รันชุดข้อมูลใหม่ 941 บริษัท (Dataset 2):}
+\begin{lstlisting}[language=bash]
+# วิเคราะห์รายบริษัท
+python lime33_adapter_panel.py -d 2 --issuer PTT
+python lime33_adapter_panel.py -d 2 --issuer A
+
+# วิเคราะห์ทุกบริษัทในกลุ่มเสี่ยงสูง
+python lime33_adapter_panel.py -d 2 --all-high-risk
+\end{lstlisting}
+
+  \item \textbf{3. รันชุดข้อมูลเดิม (Dataset 1) สำหรับเปรียบเทียบ:}
+\begin{lstlisting}[language=bash]
+python lime33_adapter_panel.py -d 1 --issuer A
+\end{lstlisting}
+\end{itemize}
+
+\newpage
+\section{บัญชีรายชื่อทั้ง 941 บริษัทและความครบถ้วนของข้อมูล (941-Firm Directory)}
+
+ตารางแสดงรายชื่อบริษัททั้งหมด 941 บริษัทในตลาดทุนไทยที่มีอยู่ในตาราง \ft{ibond_33features_panel_941firm} ช่วงเวลาข้อมูลเริ่มต้น--สิ้นสุด จำนวนเดือนที่มีการบันทึก เปอร์เซ็นต์ความครบถ้วนของ 30 ตัวแปรหลัก และประวัติการเกิดวิกฤต/การปรับโครงสร้างหนี้:
+
+\begin{longtable}{cp{1.6cm}p{4.8cm}ccccccc}
+\toprule
+\textbf{ที่} & \textbf{Ticker} & \textbf{ชื่อบริษัท} & \textbf{ตลาด} & \textbf{หมวด} & \textbf{เริ่ม} & \textbf{ถึง} & \textbf{เดือน} & \textbf{\%ครบ} & \textbf{สถานะ} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ที่} & \textbf{Ticker} & \textbf{ชื่อบริษัท} & \textbf{ตลาด} & \textbf{หมวด} & \textbf{เริ่ม} & \textbf{ถึง} & \textbf{เดือน} & \textbf{\%ครบ} & \textbf{สถานะ} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{10}{r}{\textit{อ่านต่อหน้าถัดไป...}} \\
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+1 & \ft{2S} & 2S METAL PUBLIC COMPANY LI & SET & Steel and Me & 2009-09 & 2026-08 & 204 & 79.1\% & \textcolor{normalgreen}{Normal} \\
+2 & \ft{3BBIF} & 3BB INTERNET INFRASTRUCTUR & SET & Information  & 2015-02 & 2026-08 & 139 & 67.0\% & \textcolor{normalgreen}{Normal} \\
+3 & \ft{88TH} & 88(Thailand) Public Compan & mai & nan & 2025-10 & 2026-08 & 11 & 21.8\% & \textcolor{normalgreen}{Normal} \\
+4 & \ft{A} & AREEYA PROPERTY PUBLIC COM & SET & Property Dev & 2004-04 & 2026-08 & 269 & 78.5\% & \textcolor{alertred}{\textbf{Distress}} \\
+5 & \ft{A5} & ASSET FIVE GROUP PUBLIC CO & SET & Property Dev & 2003-11 & 2026-08 & 274 & 72.2\% & \textcolor{normalgreen}{Normal} \\
+6 & \ft{AAI} & Asian Alliance Internation & SET & Food \& Bever & 2022-11 & 2026-08 & 46 & 77.3\% & \textcolor{normalgreen}{Normal} \\
+7 & \ft{AAV} & ASIA AVIATION PUBLIC COMPA & SET & Transportati & 2012-05 & 2026-08 & 172 & 86.6\% & \textcolor{normalgreen}{Normal} \\
+8 & \ft{ABM} & ASIA BIOMASS PUBLIC COMPAN & mai & nan & 2018-02 & 2026-08 & 103 & 77.2\% & \textcolor{normalgreen}{Normal} \\
+9 & \ft{ACAP} & ASIA CAPITAL GROUP PUBLIC  & mai & Finance and  & 2005-12 & 2023-05 & 210 & 26.6\% & \textcolor{alertred}{\textbf{Distress}} \\
+10 & \ft{ACC} & ADVANCED CONNECTION CORPOR & SET & Energy \& Uti & 1993-03 & 2026-08 & 402 & 55.4\% & \textcolor{normalgreen}{Normal} \\
+11 & \ft{ACE} & ABSOLUTE CLEAN ENERGY PUBL & SET & Energy \& Uti & 2019-11 & 2026-08 & 82 & 97.2\% & \textcolor{normalgreen}{Normal} \\
+12 & \ft{ACG} & AUTOCORP HOLDING PUBLIC CO & SET & Automotive & 2019-06 & 2026-08 & 87 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+13 & \ft{ADB} & APPLIED DB PUBLIC COMPANY  & mai & Banking & 2017-11 & 2026-08 & 106 & 86.7\% & \textcolor{normalgreen}{Normal} \\
+14 & \ft{ADD} & ADDTECH HUB PUBLIC COMPANY & mai & nan & 2021-05 & 2026-08 & 64 & 78.6\% & \textcolor{normalgreen}{Normal} \\
+15 & \ft{ADVANC} & ADVANCED INFO SERVICE PUBL & SET & Information  & 1991-11 & 2026-08 & 418 & 76.5\% & \textcolor{normalgreen}{Normal} \\
+16 & \ft{ADVICE} & Advice IT Infinite Public  & SET & Commerce & 2024-01 & 2026-08 & 32 & 71.9\% & \textcolor{normalgreen}{Normal} \\
+17 & \ft{AE} & ALL ENERGY \& UTILITIES PUB & SET & Energy \& Uti & 2002-04 & 2026-08 & 293 & 74.6\% & \textcolor{normalgreen}{Normal} \\
+18 & \ft{AEONTS} & AEON THANA SINSAP (THAILAN & SET & Finance \& Se & 2001-12 & 2026-08 & 297 & 78.8\% & \textcolor{normalgreen}{Normal} \\
+19 & \ft{AF} & AIRA FACTORING PUBLIC COMP & mai & nan & 2004-08 & 2026-08 & 265 & 75.5\% & \textcolor{normalgreen}{Normal} \\
+20 & \ft{AFC} & ASIA FIBER PUBLIC COMPANY  & SET & Fashion & 1990-01 & 2026-08 & 440 & 59.2\% & \textcolor{normalgreen}{Normal} \\
+21 & \ft{AGE} & ASIA GREEN ENERGY PUBLIC C & SET & Energy \& Uti & 2009-02 & 2026-08 & 211 & 78.6\% & \textcolor{normalgreen}{Normal} \\
+22 & \ft{AH} & AAPICO HITECH PUBLIC COMPA & SET & Automotive & 2002-10 & 2026-08 & 287 & 82.6\% & \textcolor{normalgreen}{Normal} \\
+23 & \ft{AHC} & AIKCHOL HOSPITAL PUBLIC CO & SET & Health Care  & 1992-01 & 2026-08 & 416 & 55.6\% & \textcolor{normalgreen}{Normal} \\
+24 & \ft{AI} & ASIAN INSULATORS PUBLIC CO & SET & Energy \& Uti & 2005-12 & 2026-08 & 249 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+25 & \ft{AIE} & AI ENERGY PUBLIC COMPANY L & SET & Energy \& Uti & 2014-01 & 2026-08 & 152 & 75.7\% & \textcolor{normalgreen}{Normal} \\
+26 & \ft{AIMCG} & AIM COMMERCIAL GROWTH FREE & SET & Property Fun & 2019-07 & 2026-08 & 86 & 70.5\% & \textcolor{normalgreen}{Normal} \\
+27 & \ft{AIMIRT} & AIM INDUSTRIAL GROWTH FREE & SET & Property Fun & 2018-01 & 2026-08 & 104 & 66.2\% & \textcolor{normalgreen}{Normal} \\
+28 & \ft{AIRA} & AIRA CAPITAL PUBLIC COMPAN & mai & nan & 2014-07 & 2026-08 & 146 & 75.6\% & \textcolor{normalgreen}{Normal} \\
+29 & \ft{AIT} & ADVANCED INFORMATION TECHN & SET & Information  & 2003-07 & 2026-08 & 278 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+30 & \ft{AJ} & A.J. PLAST PUBLIC COMPANY  & SET & Packaging & 1990-12 & 2026-08 & 429 & 61.7\% & \textcolor{normalgreen}{Normal} \\
+31 & \ft{AJA} & AJ ADVANCE TECHNOLOGY PUBL & SET & Home \& Offic & 2014-02 & 2026-08 & 151 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+32 & \ft{AKP} & AKKHIE PRAKARN PUBLIC COMP & mai & nan & 2013-02 & 2026-08 & 163 & 81.7\% & \textcolor{normalgreen}{Normal} \\
+33 & \ft{AKR} & EKARAT ENGINEERING PUBLIC  & SET & Industrial M & 2006-08 & 2026-08 & 241 & 79.3\% & \textcolor{normalgreen}{Normal} \\
+34 & \ft{AKS} & AKS CORPORATION PUBLIC COM & SET & Property Dev & 1999-04 & 2026-07 & 328 & 25.7\% & \textcolor{normalgreen}{Normal} \\
+35 & \ft{ALL} & All Inspire Development PC & mai & Property Dev & 2019-05 & 2024-09 & 65 & 72.8\% & \textcolor{alertred}{\textbf{Distress}} \\
+36 & \ft{ALLA} & ALLA PUBLIC COMPANY LIMITE & SET & Industrial M & 2016-11 & 2026-08 & 118 & 77.0\% & \textcolor{normalgreen}{Normal} \\
+37 & \ft{ALLY} & ALLY FREEHOLD AND LEASEHOL & SET & Property Fun & 2019-12 & 2026-08 & 81 & 66.9\% & \textcolor{normalgreen}{Normal} \\
+38 & \ft{ALPHAX} & ALPHA DIVISIONS PUBLIC COM & mai & nan & 2013-12 & 2026-08 & 153 & 77.2\% & \textcolor{normalgreen}{Normal} \\
+39 & \ft{ALT} & ALT TELECOM PUBLIC COMPANY & SET & Information  & 2016-07 & 2026-08 & 122 & 77.9\% & \textcolor{normalgreen}{Normal} \\
+40 & \ft{ALUCON} & ALUCON PUBLIC COMPANY LIMI & SET & Packaging & 1989-11 & 2026-08 & 442 & 57.1\% & \textcolor{normalgreen}{Normal} \\
+41 & \ft{AMA} & AMA MARINE PUBLIC COMPANY  & mai & nan & 2016-12 & 2026-08 & 117 & 79.1\% & \textcolor{normalgreen}{Normal} \\
+42 & \ft{AMANAH} & AMANAH LEASING PUBLIC COMP & SET & Finance \& Se & 2001-12 & 2026-08 & 297 & 70.4\% & \textcolor{normalgreen}{Normal} \\
+43 & \ft{AMARC} & ASIA MEDICAL AND AGRICULTU & mai & nan & 2022-10 & 2026-08 & 47 & 76.7\% & \textcolor{normalgreen}{Normal} \\
+44 & \ft{AMARIN} & AMARIN CORPORATIONS PUBLIC & SET & Media \& Publ & 1992-01 & 2026-08 & 416 & 61.0\% & \textcolor{normalgreen}{Normal} \\
+45 & \ft{AMATA} & AMATA CORPORATION PUBLIC C & SET & Property Dev & 2000-06 & 2026-08 & 315 & 83.9\% & \textcolor{normalgreen}{Normal} \\
+46 & \ft{AMATAR} & AMATA SUMMIT GROWTH FREEHO & SET & Property Fun & 2015-06 & 2026-08 & 135 & 66.2\% & \textcolor{normalgreen}{Normal} \\
+47 & \ft{AMATAV} & AMATA VN PUBLIC COMPANY LI & SET & Property Dev & 2015-12 & 2026-08 & 129 & 86.0\% & \textcolor{normalgreen}{Normal} \\
+48 & \ft{AMC} & ASIA METAL PUBLIC COMPANY  & SET & Steel and Me & 2004-08 & 2026-08 & 265 & 78.7\% & \textcolor{normalgreen}{Normal} \\
+49 & \ft{AMR} & AMR ASIA PUBLIC COMPANY LI & SET & Information  & 2021-08 & 2026-08 & 61 & 75.1\% & \textcolor{normalgreen}{Normal} \\
+50 & \ft{ANAN} & ANANDA DEVELOPMENT PUBLIC  & SET & Property Dev & 2012-12 & 2026-08 & 165 & 78.1\% & \textcolor{normalgreen}{Normal} \\
+51 & \ft{ANI} & Asia Network International & SET & Transportati & 2023-12 & 2026-08 & 33 & 72.6\% & \textcolor{normalgreen}{Normal} \\
+52 & \ft{AOT} & AIRPORTS OF THAILAND PUBLI & SET & Transportati & 2004-03 & 2026-08 & 270 & 89.8\% & \textcolor{normalgreen}{Normal} \\
+53 & \ft{AP} & AP (THAILAND) PUBLIC COMPA & SET & Property Dev & 1992-09 & 2026-08 & 408 & 62.6\% & \textcolor{normalgreen}{Normal} \\
+54 & \ft{APCO} & ASIAN PHYTOCEUTICALS PUBLI & SET & Personal Pro & 2011-11 & 2026-08 & 178 & 73.0\% & \textcolor{normalgreen}{Normal} \\
+55 & \ft{APCS} & ASIA PRECISION PUBLIC COMP & SET & Construction & 2011-09 & 2026-08 & 180 & 77.4\% & \textcolor{alertred}{\textbf{Distress}} \\
+56 & \ft{APEX} & Apex Development PCL & SET & Property Dev & 2017-08 & 2024-10 & 87 & 25.0\% & \textcolor{normalgreen}{Normal} \\
+57 & \ft{APO} & Asian Palm Oil Public Comp & mai & nan & 2024-04 & 2026-08 & 29 & 24.8\% & \textcolor{normalgreen}{Normal} \\
+58 & \ft{APP} & APPLICAD PUBLIC COMPANY LI & mai & nan & 2019-11 & 2026-08 & 82 & 78.0\% & \textcolor{normalgreen}{Normal} \\
+59 & \ft{APURE} & AGRIPURE HOLDINGS PUBLIC C & SET & Food \& Bever & 1993-03 & 2026-08 & 402 & 63.2\% & \textcolor{normalgreen}{Normal} \\
+60 & \ft{AQUA} & AQUA CORPORATION PUBLIC CO & SET & Food \& Bever & 2010-09 & 2026-08 & 192 & 77.9\% & \textcolor{alertred}{\textbf{Distress}} \\
+61 & \ft{ARIN} & ARINSIRI LAND PUBLIC COMPA & mai & nan & 2019-07 & 2026-08 & 86 & 76.1\% & \textcolor{normalgreen}{Normal} \\
+62 & \ft{ARIP} & ARIP PUBLIC COMPANY LIMITE & mai & nan & 2010-12 & 2026-08 & 189 & 70.1\% & \textcolor{normalgreen}{Normal} \\
+63 & \ft{ARROW} & ARROW SYNDICATE PUBLIC COM & mai & nan & 2012-12 & 2026-08 & 165 & 79.1\% & \textcolor{normalgreen}{Normal} \\
+64 & \ft{AS} & ASPHERE INNOVATIONS PUBLIC & SET & Media \& Publ & 2008-05 & 2026-08 & 220 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+65 & \ft{ASAP} & SYNERGETIC AUTO PERFORMANC & SET & Automotive & 2017-03 & 2026-08 & 114 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+66 & \ft{ASEFA} & ASEFA PUBLIC COMPANY LIMIT & SET & Industrial M & 2015-08 & 2026-08 & 133 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+67 & \ft{ASIA} & ASIA HOTEL PUBLIC COMPANY  & SET & Tourism \& Le & 1989-09 & 2026-08 & 444 & 59.8\% & \textcolor{normalgreen}{Normal} \\
+68 & \ft{ASIAN} & ASIAN SEA CORPORATION PUBL & SET & Food \& Bever & 1994-07 & 2026-08 & 386 & 68.0\% & \textcolor{normalgreen}{Normal} \\
+69 & \ft{ASIMAR} & ASIAN MARINE SERVICES PUBL & SET & Transportati & 1996-01 & 2026-08 & 368 & 68.4\% & \textcolor{normalgreen}{Normal} \\
+70 & \ft{ASK} & ASIA SERMKIJ LEASING PUBLI & SET & Finance \& Se & 2005-12 & 2026-08 & 249 & 76.3\% & \textcolor{normalgreen}{Normal} \\
+71 & \ft{ASN} & ASN BROKER PUBLIC COMPANY  & mai & nan & 2016-05 & 2026-08 & 124 & 71.9\% & \textcolor{normalgreen}{Normal} \\
+72 & \ft{ASP} & ASIA PLUS GROUP HOLDINGS P & SET & Finance \& Se & 1990-01 & 2026-08 & 440 & 58.4\% & \textcolor{normalgreen}{Normal} \\
+73 & \ft{ASTR} & ASTRA ENTERPRISE PUBLIC CO & mai & nan & 2020-09 & 2026-08 & 72 & 74.8\% & \textcolor{normalgreen}{Normal} \\
+74 & \ft{ASW} & ASSETWISE PUBLIC COMPANY L & SET & Property Dev & 2021-04 & 2026-08 & 65 & 86.3\% & \textcolor{normalgreen}{Normal} \\
+75 & \ft{ATLAS} & Atlas Energy Public Compan & SET & Energy \& Uti & 2025-10 & 2026-08 & 11 & 66.1\% & \textcolor{normalgreen}{Normal} \\
+76 & \ft{ATP30} & ATP30 PUBLIC COMPANY LIMIT & mai & nan & 2015-08 & 2026-08 & 133 & 79.1\% & \textcolor{normalgreen}{Normal} \\
+77 & \ft{AU} & AFTER YOU PUBLIC COMPANY L & mai & nan & 2016-12 & 2026-08 & 117 & 78.8\% & \textcolor{normalgreen}{Normal} \\
+78 & \ft{AUCT} & UNION AUCTION PUBLIC COMPA & mai & nan & 2013-08 & 2026-08 & 157 & 69.9\% & \textcolor{normalgreen}{Normal} \\
+79 & \ft{AURA} & Aurora Design Public Compa & SET & Fashion & 2022-11 & 2026-08 & 46 & 93.0\% & \textcolor{normalgreen}{Normal} \\
+80 & \ft{AWC} & ASSET WORLD CORP PUBLIC CO & SET & Property Dev & 2019-10 & 2026-08 & 83 & 95.3\% & \textcolor{normalgreen}{Normal} \\
+81 & \ft{AXTRART} & Axtra Future City Freehold & SET & Property Fun & 2024-12 & 2026-08 & 21 & 46.0\% & \textcolor{normalgreen}{Normal} \\
+82 & \ft{AYUD} & ALLIANZ AYUDHYA CAPITAL PU & SET & Insurance & 1988-01 & 2026-08 & 464 & 40.3\% & \textcolor{normalgreen}{Normal} \\
+83 & \ft{B} & BEGISTICS PUBLIC COMPANY L & SET & Transportati & 2018-03 & 2026-08 & 102 & 73.0\% & \textcolor{alertred}{\textbf{Distress}} \\
+84 & \ft{B-WORK} & BUALUANG OFFICE LEASEHOLD  & SET & Property Fun & 2018-03 & 2026-08 & 102 & 66.9\% & \textcolor{normalgreen}{Normal} \\
+85 & \ft{B52} & B-52 CAPITAL PUBLIC COMPAN & SET & Commerce & 2019-05 & 2026-08 & 88 & 74.9\% & \textcolor{normalgreen}{Normal} \\
+86 & \ft{BA} & BANGKOK AIRWAYS PUBLIC COM & SET & Transportati & 2014-11 & 2026-08 & 142 & 82.8\% & \textcolor{normalgreen}{Normal} \\
+87 & \ft{BAFS} & BANGKOK AVIATION FUEL SERV & SET & Energy \& Uti & 2002-04 & 2026-08 & 293 & 81.1\% & \textcolor{normalgreen}{Normal} \\
+88 & \ft{BAM} & BANGKOK COMMERCIAL ASSET M & SET & Finance \& Se & 2019-12 & 2026-08 & 81 & 72.4\% & \textcolor{normalgreen}{Normal} \\
+89 & \ft{BANPU} & BANPU PUBLIC COMPANY LIMIT & SET & Energy \& Uti & 1989-06 & 2026-08 & 447 & 25.4\% & \textcolor{normalgreen}{Normal} \\
+90 & \ft{BAREIT} & BA Airport Leasehold Real  & SET & Property Fun & 2022-09 & 2026-08 & 48 & 50.6\% & \textcolor{normalgreen}{Normal} \\
+91 & \ft{BAY} & BANK OF AYUDHYA PUBLIC COM & SET & Banking & 1984-01 & 2026-08 & 512 & 52.1\% & \textcolor{normalgreen}{Normal} \\
+92 & \ft{BBGI} & BBGI PUBLIC COMPANY LIMITE & SET & Energy \& Uti & 2022-03 & 2026-08 & 54 & 84.1\% & \textcolor{normalgreen}{Normal} \\
+93 & \ft{BBIK} & BLUEBIK GROUP PUBLIC COMPA & SET & Information  & 2021-09 & 2026-08 & 60 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+94 & \ft{BBL} & BANGKOK BANK PUBLIC COMPAN & SET & Banking & 1984-01 & 2026-08 & 512 & 52.1\% & \textcolor{normalgreen}{Normal} \\
+95 & \ft{BC} & BOUTIQUE CORPORATION PUBLI & mai & nan & 2019-11 & 2026-08 & 82 & 75.3\% & \textcolor{normalgreen}{Normal} \\
+96 & \ft{BCH} & BANGKOK CHAIN HOSPITAL PUB & SET & Health Care  & 2004-11 & 2026-08 & 262 & 83.5\% & \textcolor{normalgreen}{Normal} \\
+97 & \ft{BCP} & BANGCHAK CORPORATION PUBLI & SET & Energy \& Uti & 1994-08 & 2026-08 & 385 & 71.0\% & \textcolor{normalgreen}{Normal} \\
+98 & \ft{BCPG} & BCPG PUBLIC COMPANY LIMITE & SET & Energy \& Uti & 2016-09 & 2026-08 & 120 & 88.2\% & \textcolor{normalgreen}{Normal} \\
+99 & \ft{BCT} & BIRLA CARBON (THAILAND) PU & SET & Petrochemica & 1990-08 & 2026-08 & 433 & 59.5\% & \textcolor{normalgreen}{Normal} \\
+100 & \ft{BDMS} & BANGKOK DUSIT MEDICAL SERV & SET & Health Care  & 1991-10 & 2026-08 & 419 & 68.6\% & \textcolor{normalgreen}{Normal} \\
+101 & \ft{BE8} & BERYL 8 PLUS PUBLIC COMPAN & mai & nan & 2021-11 & 2026-08 & 58 & 77.1\% & \textcolor{normalgreen}{Normal} \\
+102 & \ft{BEAUTY} & BEAUTY COMMUNITY PUBLIC CO & SET & Commerce & 2012-12 & 2026-08 & 165 & 68.7\% & \textcolor{normalgreen}{Normal} \\
+103 & \ft{BEC} & BEC WORLD PUBLIC COMPANY L & SET & Media \& Publ & 1996-07 & 2026-08 & 362 & 80.2\% & \textcolor{normalgreen}{Normal} \\
+104 & \ft{BEM} & BANGKOK EXPRESSWAY AND MET & SET & Transportati & 2016-01 & 2026-08 & 128 & 95.5\% & \textcolor{normalgreen}{Normal} \\
+105 & \ft{BEYOND} & BOUND AND BEYOND PUBLIC CO & SET & Tourism \& Le & 1988-01 & 2026-08 & 464 & 58.5\% & \textcolor{normalgreen}{Normal} \\
+106 & \ft{BGC} & BG CONTAINER GLASS PUBLIC  & SET & Packaging & 2018-10 & 2026-08 & 95 & 88.7\% & \textcolor{normalgreen}{Normal} \\
+107 & \ft{BGRIM} & B.GRIMM POWER PUBLIC COMPA & SET & Energy \& Uti & 2017-07 & 2026-08 & 110 & 92.7\% & \textcolor{normalgreen}{Normal} \\
+108 & \ft{BGT} & BGT CORPORATION PUBLIC COM & mai & nan & 2007-12 & 2026-08 & 225 & 78.0\% & \textcolor{normalgreen}{Normal} \\
+109 & \ft{BH} & BUMRUNGRAD HOSPITAL PUBLIC & SET & Health Care  & 1989-12 & 2026-08 & 441 & 65.7\% & \textcolor{normalgreen}{Normal} \\
+110 & \ft{BIG} & BIG CAMERA CORPORATION PUB & SET & Commerce & 1991-05 & 2026-08 & 424 & 53.1\% & \textcolor{normalgreen}{Normal} \\
+111 & \ft{BIOTEC} & BIO GREEN ENERGY TECH PUBL & SET & Energy \& Uti & 2022-05 & 2026-08 & 52 & 77.6\% & \textcolor{normalgreen}{Normal} \\
+112 & \ft{BIS} & Bioscience Animal Health P & mai & nan & 2022-05 & 2026-08 & 52 & 77.8\% & \textcolor{normalgreen}{Normal} \\
+113 & \ft{BIZ} & BUSINESS ALIGNMENT PUBLIC  & SET & Personal Pro & 2016-07 & 2026-08 & 122 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+114 & \ft{BJC} & BERLI JUCKER PUBLIC COMPAN & SET & Commerce & 1984-01 & 2026-08 & 512 & 59.8\% & \textcolor{normalgreen}{Normal} \\
+115 & \ft{BJCHI} & BJC HEAVY INDUSTRIES PUBLI & SET & Construction & 2013-11 & 2026-08 & 154 & 77.1\% & \textcolor{normalgreen}{Normal} \\
+116 & \ft{BKA} & Bangkok Asset Intergroup P & mai & nan & 2025-04 & 2026-08 & 17 & 23.5\% & \textcolor{normalgreen}{Normal} \\
+117 & \ft{BKD} & BANGKOK DEC-CON PUBLIC COM & SET & Construction & 2013-09 & 2026-08 & 156 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+118 & \ft{BKGI} & Bangkok Genomics Innovatio & SET & Health Care  & 2024-03 & 2026-08 & 30 & 76.2\% & \textcolor{normalgreen}{Normal} \\
+119 & \ft{BKIH} & BKI HOLDINGS PUBLIC COMPAN & SET & Insurance & 2024-06 & 2026-08 & 27 & 62.3\% & \textcolor{normalgreen}{Normal} \\
+120 & \ft{BLA} & BANGKOK LIFE ASSURANCE PUB & SET & Insurance & 2009-09 & 2026-08 & 204 & 54.1\% & \textcolor{normalgreen}{Normal} \\
+121 & \ft{BLAND} & BANGKOK LAND PUBLIC COMPAN & SET & Property Dev & 1992-02 & 2026-08 & 415 & 65.8\% & \textcolor{normalgreen}{Normal} \\
+122 & \ft{BLC} & Bangkok Lab and Cosmetic P & SET & Personal Pro & 2023-06 & 2026-08 & 39 & 82.9\% & \textcolor{normalgreen}{Normal} \\
+123 & \ft{BLESS} & BLESS ASSET GROUP PUBLIC C & mai & Property Dev & 2022-07 & 2026-08 & 50 & 77.9\% & \textcolor{normalgreen}{Normal} \\
+124 & \ft{BLISS} & BLISS INTELLIGENCE PUBLIC  & SET & Information  & 2004-12 & 2019-07 & 176 & 24.8\% & \textcolor{normalgreen}{Normal} \\
+125 & \ft{BM} & BANGKOK SHEET METAL PUBLIC & mai & nan & 2016-05 & 2026-08 & 124 & 26.2\% & \textcolor{normalgreen}{Normal} \\
+126 & \ft{BOFFICE} & BHIRAJ OFFICE LEASEHOLD RE & SET & Property Fun & 2018-01 & 2026-08 & 104 & 66.2\% & \textcolor{normalgreen}{Normal} \\
+127 & \ft{BOL} & BUSINESS ONLINE PUBLIC COM & mai & nan & 2005-12 & 2026-08 & 249 & 67.7\% & \textcolor{normalgreen}{Normal} \\
+128 & \ft{BPP} & Banpu Power PCL & SET & Energy \& Uti & 2016-10 & 2026-07 & 118 & 26.3\% & \textcolor{normalgreen}{Normal} \\
+129 & \ft{BPS} & BPS Technology Public Comp & mai & nan & 2024-04 & 2026-08 & 29 & 24.8\% & \textcolor{normalgreen}{Normal} \\
+130 & \ft{BR} & BANGKOK RANCH PUBLIC COMPA & SET & Food \& Bever & 2015-07 & 2026-08 & 134 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+131 & \ft{BRI} & BRITANIA PUBLIC COMPANY LI & SET & Property Dev & 2021-12 & 2026-08 & 57 & 74.7\% & \textcolor{normalgreen}{Normal} \\
+132 & \ft{BROCK} & BAAN ROCK GARDEN PUBLIC CO & SET & Property Dev & 2006-11 & 2026-08 & 238 & 74.8\% & \textcolor{normalgreen}{Normal} \\
+133 & \ft{BRR} & BURIRAM SUGAR PUBLIC COMPA & SET & Food \& Bever & 2014-11 & 2026-08 & 142 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+134 & \ft{BRRGIF} & BURIRAM SUGAR GROUP POWER  & SET & Energy \& Uti & 2017-08 & 2026-08 & 109 & 44.6\% & \textcolor{normalgreen}{Normal} \\
+135 & \ft{BSBM} & BANGSAPHAN BARMILL PUBLIC  & SET & Steel and Me & 2005-12 & 2026-08 & 249 & 72.7\% & \textcolor{normalgreen}{Normal} \\
+136 & \ft{BSM} & BUILDERSMART PUBLIC COMPAN & mai & Construction & 2008-02 & 2026-08 & 223 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+137 & \ft{BTC} & THE BROOKER GROUP PUBLIC C & mai & nan & 2003-07 & 2026-08 & 278 & 68.2\% & \textcolor{normalgreen}{Normal} \\
+138 & \ft{BTG} & BETAGRO PUBLIC COMPANY LIM & SET & Food \& Bever & 2022-11 & 2026-08 & 46 & 92.5\% & \textcolor{normalgreen}{Normal} \\
+139 & \ft{BTNC} & BOUTIQUE NEWCITY PUBLIC CO & SET & Fashion & 1990-01 & 2026-08 & 440 & 58.5\% & \textcolor{normalgreen}{Normal} \\
+140 & \ft{BTS} & BTS GROUP HOLDINGS PUBLIC  & SET & Transportati & 1991-03 & 2026-08 & 426 & 65.3\% & \textcolor{normalgreen}{Normal} \\
+141 & \ft{BTSGIF} & BTS RAIL MASS TRANSIT GROW & SET & Transportati & 2013-04 & 2026-08 & 161 & 44.8\% & \textcolor{normalgreen}{Normal} \\
+142 & \ft{BTW} & BT WEALTH INDUSTRIES PUBLI & mai & nan & 2016-07 & 2026-08 & 122 & 75.8\% & \textcolor{normalgreen}{Normal} \\
+143 & \ft{BUI} & BANGKOK UNION INSURANCE PU & SET & Insurance & 1988-12 & 2026-08 & 453 & 44.1\% & \textcolor{normalgreen}{Normal} \\
+144 & \ft{BVG} & BlueVenture Group Public C & mai & nan & 2023-02 & 2026-08 & 43 & 71.4\% & \textcolor{normalgreen}{Normal} \\
+145 & \ft{BWG} & BETTER WORLD GREEN PUBLIC  & SET & Professional & 2007-11 & 2026-08 & 226 & 81.2\% & \textcolor{normalgreen}{Normal} \\
+146 & \ft{BYD} & BEYOND SECURITIES PUBLIC C & SET & Finance \& Se & 2021-08 & 2026-08 & 61 & 68.0\% & \textcolor{normalgreen}{Normal} \\
+147 & \ft{CAZ} & CAZ (THAILAND) PUBLIC COMP & mai & Construction & 2019-01 & 2026-08 & 92 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+148 & \ft{CBG} & CARABAO GROUP PUBLIC COMPA & SET & Food \& Bever & 2014-11 & 2026-08 & 142 & 88.4\% & \textcolor{normalgreen}{Normal} \\
+149 & \ft{CCET} & CAL-COMP ELECTRONICS (THAI & SET & Electronic C & 2001-01 & 2026-08 & 308 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+150 & \ft{CCP} & CHONBURI CONCRETE PRODUCT  & SET & Construction & 2003-12 & 2026-08 & 273 & 78.5\% & \textcolor{normalgreen}{Normal} \\
+151 & \ft{CEN} & CAPITAL ENGINEERING NETWOR & SET & Steel and Me & 1991-05 & 2026-08 & 424 & 58.6\% & \textcolor{normalgreen}{Normal} \\
+152 & \ft{CENTEL} & CENTRAL PLAZA HOTEL PUBLIC & SET & Tourism \& Le & 1990-01 & 2026-08 & 440 & 63.1\% & \textcolor{normalgreen}{Normal} \\
+153 & \ft{CEYE} & Chamni's Eye Public Compan & mai & nan & 2022-04 & 2026-08 & 53 & 75.8\% & \textcolor{normalgreen}{Normal} \\
+154 & \ft{CFARM} & CHUWIT FARM (2019) PUBLIC  & mai & nan & 2024-06 & 2026-08 & 27 & 24.7\% & \textcolor{normalgreen}{Normal} \\
+155 & \ft{CFRESH} & SEAFRESH INDUSTRY PUBLIC C & SET & Food \& Bever & 1993-08 & 2026-08 & 397 & 65.8\% & \textcolor{normalgreen}{Normal} \\
+156 & \ft{CGD} & COUNTRY GROUP DEVELOPMENT  & SET & Property Dev & 1997-05 & 2026-08 & 352 & 64.6\% & \textcolor{alertred}{\textbf{Distress}} \\
+157 & \ft{CGH} & COUNTRY GROUP HOLDINGS PUB & SET & Finance \& Se & 2015-01 & 2026-08 & 140 & 74.3\% & \textcolor{normalgreen}{Normal} \\
+158 & \ft{CH} & Chin Huay Public Company L & SET & Food \& Bever & 2022-09 & 2026-08 & 48 & 76.7\% & \textcolor{normalgreen}{Normal} \\
+159 & \ft{CHAO} & CHAOSUA FOODS INDUSTRY PUB & SET & Food \& Bever & 2024-07 & 2026-08 & 26 & 71.3\% & \textcolor{normalgreen}{Normal} \\
+160 & \ft{CHARAN} & CHARAN INSURANCE PUBLIC CO & SET & Insurance & 1993-02 & 2026-08 & 403 & 41.9\% & \textcolor{normalgreen}{Normal} \\
+161 & \ft{CHASE} & Chase Asia Public Company  & SET & Finance \& Se & 2023-02 & 2026-08 & 43 & 74.0\% & \textcolor{normalgreen}{Normal} \\
+162 & \ft{CHAYO} & CHAYO GROUP PUBLIC COMPANY & SET & Finance \& Se & 2018-03 & 2026-08 & 102 & 76.6\% & \textcolor{normalgreen}{Normal} \\
+163 & \ft{CHEWA} & CHEWATHAI PUBLIC COMPANY L & mai & nan & 2016-04 & 2026-08 & 125 & 76.7\% & \textcolor{normalgreen}{Normal} \\
+164 & \ft{CHG} & CHULARAT HOSPITAL PUBLIC C & SET & Health Care  & 2013-05 & 2026-08 & 160 & 88.0\% & \textcolor{normalgreen}{Normal} \\
+165 & \ft{CHIC} & CHIC REPUBLIC PUBLIC COMPA & mai & nan & 2022-07 & 2026-08 & 50 & 77.5\% & \textcolor{normalgreen}{Normal} \\
+166 & \ft{CHO} & CHO THAVEE PUBLIC COMPANY  & mai & Automotive & 2013-05 & 2026-07 & 159 & 77.1\% & \textcolor{alertred}{\textbf{Distress}} \\
+167 & \ft{CHOTI} & KIANG HUAT SEA GULL TRADIN & SET & Food \& Bever & 1992-02 & 2026-08 & 415 & 61.5\% & \textcolor{normalgreen}{Normal} \\
+168 & \ft{CHOW} & CHOW BRIGHT VENTURES HOLDI & mai & Steel \& Meta & 2011-12 & 2026-08 & 177 & 78.1\% & \textcolor{normalgreen}{Normal} \\
+169 & \ft{CI} & CHARN ISSARA DEVELOPMENT P & SET & Property Dev & 2002-12 & 2026-08 & 285 & 26.5\% & \textcolor{normalgreen}{Normal} \\
+170 & \ft{CIG} & C.I.GROUP PUBLIC COMPANY L & mai & nan & 2005-12 & 2026-08 & 249 & 75.8\% & \textcolor{normalgreen}{Normal} \\
+171 & \ft{CIMBT} & CIMB THAI BANK PUBLIC COMP & SET & Banking & 1984-02 & 2025-06 & 497 & 24.3\% & \textcolor{normalgreen}{Normal} \\
+172 & \ft{CITY} & CITY STEEL PUBLIC COMPANY  & SET & Steel and Me & 2006-02 & 2026-08 & 247 & 68.7\% & \textcolor{normalgreen}{Normal} \\
+173 & \ft{CIVIL} & CIVIL ENGINEERING PUBLIC C & SET & Construction & 2022-01 & 2026-08 & 56 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+174 & \ft{CK} & CH. KARNCHANG PUBLIC COMPA & SET & Construction & 1995-08 & 2026-08 & 373 & 69.7\% & \textcolor{normalgreen}{Normal} \\
+175 & \ft{CKP} & CK POWER PUBLIC COMPANY LI & SET & Energy \& Uti & 2013-07 & 2026-08 & 158 & 88.1\% & \textcolor{normalgreen}{Normal} \\
+176 & \ft{CM} & CHIANGMAI FROZEN FOODS PUB & SET & Food \& Bever & 1993-01 & 2026-08 & 404 & 57.5\% & \textcolor{normalgreen}{Normal} \\
+177 & \ft{CMAN} & CHEMEMAN PUBLIC COMPANY LI & SET & Petrochemica & 2018-03 & 2026-08 & 102 & 78.8\% & \textcolor{normalgreen}{Normal} \\
+178 & \ft{CMC} & CHAOPRAYAMAHANAKORN PUBLIC & SET & Property Dev & 2018-11 & 2026-08 & 94 & 77.8\% & \textcolor{alertred}{\textbf{Distress}} \\
+179 & \ft{CMO} & CMO PUBLIC COMPANY LIMITED & mai & Professional & 2005-12 & 2026-08 & 249 & 78.7\% & \textcolor{normalgreen}{Normal} \\
+180 & \ft{CMR} & CHIANG MAI RAM MEDICAL BUS & SET & Health Care  & 1994-10 & 2026-08 & 383 & 63.7\% & \textcolor{normalgreen}{Normal} \\
+181 & \ft{CNT} & CHRISTIANI \& NIELSEN (THAI & SET & Construction & 1991-03 & 2026-08 & 426 & 60.1\% & \textcolor{normalgreen}{Normal} \\
+182 & \ft{COCOCO} & Thai Coconut Public Compan & SET & Food \& Bever & 2023-09 & 2026-08 & 36 & 76.3\% & \textcolor{normalgreen}{Normal} \\
+183 & \ft{COLOR} & SALEE COLOUR PUBLIC COMPAN & mai & nan & 2011-06 & 2026-08 & 183 & 81.9\% & \textcolor{normalgreen}{Normal} \\
+184 & \ft{COM7} & COM7 PUBLIC COMPANY LIMITE & SET & Commerce & 2015-08 & 2026-08 & 133 & 89.9\% & \textcolor{normalgreen}{Normal} \\
+185 & \ft{COMAN} & COMANCHE INTERNATIONAL PUB & mai & nan & 2016-11 & 2026-08 & 118 & 75.0\% & \textcolor{normalgreen}{Normal} \\
+186 & \ft{CPALL} & CP ALL PUBLIC COMPANY LIMI & SET & Commerce & 2003-10 & 2026-08 & 275 & 90.4\% & \textcolor{normalgreen}{Normal} \\
+187 & \ft{CPANEL} & CPANEL PUBLIC COMPANY LIMI & mai & nan & 2021-09 & 2026-08 & 60 & 76.7\% & \textcolor{normalgreen}{Normal} \\
+188 & \ft{CPAXT} & CP AXTRA PUBLIC COMPANY LI & SET & Commerce & 2023-06 & 2026-08 & 39 & 63.8\% & \textcolor{normalgreen}{Normal} \\
+189 & \ft{CPF} & CHAROEN POKPHAND FOODS PUB & SET & Food \& Bever & 1987-12 & 2026-08 & 465 & 68.6\% & \textcolor{normalgreen}{Normal} \\
+190 & \ft{CPH} & CASTLE PEAK HOLDINGS PUBLI & SET & Fashion & 1992-03 & 2026-08 & 414 & 61.9\% & \textcolor{normalgreen}{Normal} \\
+191 & \ft{CPI} & CHUMPORN PALM OIL INDUSTRY & SET & Food \& Bever & 1994-05 & 2026-08 & 388 & 65.7\% & \textcolor{normalgreen}{Normal} \\
+192 & \ft{CPL} & CPL GROUP PUBLIC COMPANY L & SET & Fashion & 1994-12 & 2026-08 & 381 & 66.2\% & \textcolor{normalgreen}{Normal} \\
+193 & \ft{CPN} & CENTRAL PATTANA PUBLIC COM & SET & Property Dev & 1995-03 & 2026-08 & 378 & 73.4\% & \textcolor{normalgreen}{Normal} \\
+194 & \ft{CPNCG} & CPN COMMERCIAL GROWTH LEAS & SET & Property Fun & 2012-09 & 2026-08 & 168 & 66.7\% & \textcolor{normalgreen}{Normal} \\
+195 & \ft{CPNREIT} & CPN RETAIL GROWTH LEASEHOL & SET & Property Fun & 2017-12 & 2026-08 & 105 & 66.3\% & \textcolor{normalgreen}{Normal} \\
+196 & \ft{CPR} & CPR GOMU INDUSTRIAL PUBLIC & mai & nan & 2005-12 & 2026-08 & 249 & 78.8\% & \textcolor{normalgreen}{Normal} \\
+197 & \ft{CPT} & CPT DRIVES AND POWER PUBLI & SET & Industrial M & 2017-12 & 2026-08 & 105 & 77.3\% & \textcolor{normalgreen}{Normal} \\
+198 & \ft{CPTREIT} & C.P. Tower Leasehold Real  & SET & Property Fun & 2024-11 & 2026-08 & 22 & 38.2\% & \textcolor{normalgreen}{Normal} \\
+199 & \ft{CPW} & COPPERWIRED PUBLIC COMPANY & SET & Commerce & 2019-10 & 2026-08 & 83 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+200 & \ft{CRANE} & CHU KAI PUBLIC COMPANY LIM & SET & Industrial M & 2008-02 & 2026-08 & 223 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+201 & \ft{CRC} & CENTRAL RETAIL CORPORATION & SET & Commerce & 2020-02 & 2026-08 & 79 & 96.5\% & \textcolor{normalgreen}{Normal} \\
+202 & \ft{CRD} & CHIANGMAI RIMDOI PUBLIC CO & mai & nan & 2017-10 & 2026-08 & 107 & 77.4\% & \textcolor{normalgreen}{Normal} \\
+203 & \ft{CREDIT} & THAI CREDIT BANK PUBLIC CO & SET & Banking & 2024-02 & 2026-08 & 31 & 53.0\% & \textcolor{normalgreen}{Normal} \\
+204 & \ft{CSC} & CROWN SEAL PUBLIC COMPANY  & SET & Packaging & 1988-01 & 2026-08 & 464 & 55.4\% & \textcolor{normalgreen}{Normal} \\
+205 & \ft{CSP} & CSP STEEL CENTER PUBLIC CO & SET & Steel and Me & 2005-12 & 2026-08 & 249 & 77.9\% & \textcolor{normalgreen}{Normal} \\
+206 & \ft{CSR} & CITY SPORTS AND RECREATION & SET & Tourism \& Le & 1989-09 & 2026-08 & 444 & 48.4\% & \textcolor{normalgreen}{Normal} \\
+207 & \ft{CSS} & COMMUNICATION AND SYSTEM S & SET & Commerce & 2013-09 & 2026-08 & 156 & 79.0\% & \textcolor{normalgreen}{Normal} \\
+208 & \ft{CTARAF} & CENTARA HOTELS \& RESORTS L & SET & Property Fun & 2008-10 & 2026-08 & 215 & 41.4\% & \textcolor{normalgreen}{Normal} \\
+209 & \ft{CTW} & CHAROONG THAI WIRE \& CABLE & SET & Industrial M & 1984-02 & 2026-08 & 511 & 55.0\% & \textcolor{normalgreen}{Normal} \\
+210 & \ft{CV} & CLOVER POWER PUBLIC COMPAN & SET & Energy \& Uti & 2021-09 & 2025-07 & 47 & 26.5\% & \textcolor{alertred}{\textbf{Distress}} \\
+211 & \ft{CWT} & CHAI WATANA TANNERY GROUP  & SET & Automotive & 1991-04 & 2026-08 & 425 & 61.2\% & \textcolor{normalgreen}{Normal} \\
+212 & \ft{D} & DENTAL CORPORATION PUBLIC  & mai & nan & 2017-04 & 2026-08 & 113 & 79.0\% & \textcolor{normalgreen}{Normal} \\
+213 & \ft{DCC} & DYNASTY CERAMIC PUBLIC COM & SET & Construction & 1992-01 & 2026-08 & 416 & 62.4\% & \textcolor{normalgreen}{Normal} \\
+214 & \ft{DCON} & DCON PRODUCTS PUBLIC COMPA & SET & Construction & 2005-12 & 2026-08 & 249 & 79.8\% & \textcolor{normalgreen}{Normal} \\
+215 & \ft{DDD} & DO DAY DREAM PUBLIC COMPAN & SET & Personal Pro & 2017-12 & 2026-08 & 105 & 77.4\% & \textcolor{normalgreen}{Normal} \\
+216 & \ft{DELTA} & DELTA ELECTRONICS (THAILAN & SET & Electronic C & 1995-07 & 2026-08 & 374 & 75.7\% & \textcolor{normalgreen}{Normal} \\
+217 & \ft{DEMCO} & DEMCO PUBLIC COMPANY LIMIT & SET & Construction & 2006-12 & 2026-08 & 237 & 78.6\% & \textcolor{normalgreen}{Normal} \\
+218 & \ft{DEXON} & DEXON Technology Public Co & mai & nan & 2023-03 & 2026-08 & 42 & 75.6\% & \textcolor{normalgreen}{Normal} \\
+219 & \ft{DHOUSE} & DHOUSE PATTANA PUBLIC COMP & mai & Property Dev & 2020-10 & 2026-08 & 71 & 75.7\% & \textcolor{normalgreen}{Normal} \\
+220 & \ft{DIF} & DIGITAL TELECOMMUNICATIONS & SET & Information  & 2013-12 & 2026-08 & 153 & 57.9\% & \textcolor{normalgreen}{Normal} \\
+221 & \ft{DIMET} & DIMET (SIAM) PUBLIC COMPAN & mai & nan & 2008-01 & 2026-08 & 224 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+222 & \ft{DITTO} & DITTO (THAILAND) PUBLIC CO & SET & Information  & 2021-05 & 2026-08 & 64 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+223 & \ft{DMT} & DON MUANG TOLLWAY PUBLIC C & SET & Transportati & 2021-05 & 2026-08 & 64 & 83.6\% & \textcolor{normalgreen}{Normal} \\
+224 & \ft{DOD} & DOD BIOTECH PUBLIC COMPANY & mai & nan & 2018-06 & 2026-08 & 99 & 78.7\% & \textcolor{normalgreen}{Normal} \\
+225 & \ft{DOHOME} & DOHOME PUBLIC COMPANY LIMI & SET & Commerce & 2019-08 & 2026-08 & 85 & 95.8\% & \textcolor{normalgreen}{Normal} \\
+226 & \ft{DPAINT} & DELTA PAINT PUBLIC COMPANY & mai & nan & 2021-10 & 2026-08 & 59 & 76.3\% & \textcolor{normalgreen}{Normal} \\
+227 & \ft{DREIT} & DUSIT THANI FREEHOLD AND L & SET & Property Fun & 2017-12 & 2026-08 & 105 & 65.9\% & \textcolor{normalgreen}{Normal} \\
+228 & \ft{DRT} & DIAMOND BUILDING PRODUCTS  & SET & Construction & 2005-12 & 2026-08 & 249 & 82.9\% & \textcolor{normalgreen}{Normal} \\
+229 & \ft{DTCENT} & D.T.C. Enterprise Public C & SET & Information  & 2022-12 & 2026-08 & 45 & 78.1\% & \textcolor{normalgreen}{Normal} \\
+230 & \ft{DTCI} & D.T.C. INDUSTRIES PUBLIC C & SET & Home \& Offic & 1992-03 & 2026-08 & 414 & 61.5\% & \textcolor{normalgreen}{Normal} \\
+231 & \ft{DUSIT} & DUSIT THANI PUBLIC COMPANY & SET & Tourism \& Le & 1988-01 & 2026-08 & 464 & 57.0\% & \textcolor{normalgreen}{Normal} \\
+232 & \ft{EA} & ENERGY ABSOLUTE PUBLIC COM & SET & Energy \& Uti & 2013-01 & 2026-08 & 164 & 94.5\% & \textcolor{alertred}{\textbf{Distress}} \\
+233 & \ft{EARTH} & Energy Earth PCL & SET & Energy \& Uti & 1999-04 & 2019-09 & 246 & 24.7\% & \textcolor{normalgreen}{Normal} \\
+234 & \ft{EASON} & EASON \& CO PUBLIC COMPANY  & SET & Automotive & 2005-12 & 2026-08 & 249 & 79.3\% & \textcolor{normalgreen}{Normal} \\
+235 & \ft{EAST} & EASTERN COMMERCIAL LEASING & SET & Finance \& Se & 2025-03 & 2026-08 & 18 & 73.7\% & \textcolor{normalgreen}{Normal} \\
+236 & \ft{EASTW} & EASTERN WATER RESOURCES DE & SET & Energy \& Uti & 1997-07 & 2026-08 & 350 & 75.1\% & \textcolor{normalgreen}{Normal} \\
+237 & \ft{ECF} & EAST COAST FURNITECH PUBLI & mai & Home \& Offic & 2013-03 & 2026-07 & 161 & 76.9\% & \textcolor{alertred}{\textbf{Distress}} \\
+238 & \ft{EFORL} & E FOR L AIM PUBLIC COMPANY & mai & Personal Pro & 2009-02 & 2026-08 & 211 & 76.7\% & \textcolor{normalgreen}{Normal} \\
+239 & \ft{EGATIF} & NORTH BANGKOK POWER PLANT  & SET & Energy \& Uti & 2015-07 & 2026-08 & 134 & 44.1\% & \textcolor{normalgreen}{Normal} \\
+240 & \ft{EGCO} & ELECTRICITY GENERATING PUB & SET & Energy \& Uti & 1995-01 & 2026-08 & 380 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+241 & \ft{EKH} & EKACHAI MEDICAL CARE PUBLI & SET & Health Care  & 2016-07 & 2026-08 & 122 & 76.4\% & \textcolor{normalgreen}{Normal} \\
+242 & \ft{EMC} & EMC PUBLIC COMPANY LIMITED & SET & Construction & 1996-05 & 2026-08 & 364 & 63.0\% & \textcolor{normalgreen}{Normal} \\
+243 & \ft{EMPIRE} & ORIGIN GLOBAL EMPIRE PUBLI & mai & nan & 2025-11 & 2026-08 & 10 & 71.3\% & \textcolor{normalgreen}{Normal} \\
+244 & \ft{EP} & EASTERN POWER GROUP PUBLIC & SET & Energy \& Uti & 1993-04 & 2026-08 & 401 & 61.3\% & \textcolor{alertred}{\textbf{Distress}} \\
+245 & \ft{EPG} & EASTERN POLYMER GROUP PUBL & SET & Construction & 2014-12 & 2026-08 & 141 & 88.5\% & \textcolor{normalgreen}{Normal} \\
+246 & \ft{ERW} & THE ERAWAN GROUP PUBLIC CO & SET & Tourism \& Le & 1988-08 & 2026-08 & 457 & 61.8\% & \textcolor{normalgreen}{Normal} \\
+247 & \ft{ESTAR} & EASTERN STAR REAL ESTATE P & SET & Property Dev & 1994-02 & 2026-08 & 391 & 61.1\% & \textcolor{normalgreen}{Normal} \\
+248 & \ft{ETC} & EARTH TECH ENVIRONMENT PUB & SET & Energy \& Uti & 2020-08 & 2026-08 & 73 & 88.6\% & \textcolor{normalgreen}{Normal} \\
+249 & \ft{ETE} & EASTERN TECHNICAL ENGINEER & mai & Professional & 2017-02 & 2026-08 & 115 & 78.8\% & \textcolor{normalgreen}{Normal} \\
+250 & \ft{ETL} & Euroasia Total Logistics P & SET & Transportati & 2023-11 & 2026-08 & 34 & 71.5\% & \textcolor{normalgreen}{Normal} \\
+251 & \ft{EURO} & Euro Creations Public Comp & mai & nan & 2024-02 & 2026-08 & 31 & 24.9\% & \textcolor{normalgreen}{Normal} \\
+252 & \ft{EVER} & EVERLAND PUBLIC COMPANY LI & SET & Property Dev & 1994-02 & 2026-08 & 391 & 63.6\% & \textcolor{normalgreen}{Normal} \\
+253 & \ft{F\&D} & FOOD AND DRINKS PUBLIC COM & SET & Food \& Bever & 1994-08 & 2026-08 & 385 & 63.4\% & \textcolor{normalgreen}{Normal} \\
+254 & \ft{FANCY} & FANCY WOOD INDUSTRIES PUBL & SET & Home \& Offic & 1994-08 & 2026-08 & 385 & 59.9\% & \textcolor{normalgreen}{Normal} \\
+255 & \ft{FE} & FAR EAST FAME LINE PUBLIC  & SET & Media \& Publ & 1988-02 & 2026-08 & 463 & 50.6\% & \textcolor{normalgreen}{Normal} \\
+256 & \ft{FLOYD} & FLOYD PUBLIC COMPANY LIMIT & mai & nan & 2017-11 & 2026-08 & 106 & 70.5\% & \textcolor{normalgreen}{Normal} \\
+257 & \ft{FM} & FOOD MOMENTS PUBLIC COMPAN & SET & Food \& Bever & 2024-07 & 2026-08 & 26 & 74.5\% & \textcolor{normalgreen}{Normal} \\
+258 & \ft{FMT} & FINE METAL TECHNOLOGIES PU & SET & Industrial M & 1997-02 & 2026-08 & 355 & 69.4\% & \textcolor{normalgreen}{Normal} \\
+259 & \ft{FN} & FN FACTORY OUTLET PUBLIC C & SET & Commerce & 2016-11 & 2026-08 & 118 & 76.3\% & \textcolor{normalgreen}{Normal} \\
+260 & \ft{FNS} & FNS HOLDINGS PUBLIC COMPAN & SET & Finance \& Se & 2002-09 & 2026-08 & 288 & 71.7\% & \textcolor{normalgreen}{Normal} \\
+261 & \ft{FORTH} & FORTH CORPORATION PUBLIC C & SET & Information  & 2006-09 & 2026-08 & 240 & 81.6\% & \textcolor{normalgreen}{Normal} \\
+262 & \ft{FPI} & FORTUNE PARTS INDUSTRY PUB & mai & Automotive & 2012-09 & 2026-08 & 168 & 82.1\% & \textcolor{normalgreen}{Normal} \\
+263 & \ft{FPT} & FRASERS PROPERTY (THAILAND & SET & Property Dev & 2002-06 & 2026-08 & 291 & 79.0\% & \textcolor{normalgreen}{Normal} \\
+264 & \ft{FSMART} & FORTH SMART SERVICE PUBLIC & mai & nan & 2014-10 & 2026-08 & 143 & 79.4\% & \textcolor{normalgreen}{Normal} \\
+265 & \ft{FSX} & FINANSIA X PUBLIC COMPANY  & SET & Finance \& Se & 2023-08 & 2026-08 & 37 & 52.9\% & \textcolor{normalgreen}{Normal} \\
+266 & \ft{FTE} & FIRETRADE ENGINEERING PUBL & SET & Industrial M & 2017-07 & 2026-08 & 110 & 75.3\% & \textcolor{normalgreen}{Normal} \\
+267 & \ft{FTI} & Function International Pub & SET & Home \& Offic & 2022-05 & 2026-08 & 52 & 75.5\% & \textcolor{normalgreen}{Normal} \\
+268 & \ft{FTREIT} & FRASERS PROPERTY THAILAND  & SET & Property Fun & 2019-01 & 2026-08 & 92 & 75.1\% & \textcolor{normalgreen}{Normal} \\
+269 & \ft{FUTURERT} & Future City Leasehold Real & SET & Property Fun & 2024-10 & 2026-08 & 23 & 44.3\% & \textcolor{normalgreen}{Normal} \\
+270 & \ft{FVC} & FILTER VISION PUBLIC COMPA & mai & nan & 2013-10 & 2026-08 & 155 & 78.6\% & \textcolor{normalgreen}{Normal} \\
+271 & \ft{GABLE} & G-Able Public Company Limi & SET & Information  & 2023-05 & 2026-08 & 40 & 83.7\% & \textcolor{normalgreen}{Normal} \\
+272 & \ft{GAHREIT} & GRANDE HOSPITALITY REAL ES & SET & Property Fun & 2017-11 & 2026-08 & 106 & 53.7\% & \textcolor{normalgreen}{Normal} \\
+273 & \ft{GBX} & GLOBLEX HOLDING MANAGEMENT & SET & Finance \& Se & 2005-12 & 2026-08 & 249 & 75.9\% & \textcolor{normalgreen}{Normal} \\
+274 & \ft{GC} & GLOBAL CONNECTIONS PUBLIC  & SET & Petrochemica & 2005-12 & 2026-08 & 249 & 79.3\% & \textcolor{normalgreen}{Normal} \\
+275 & \ft{GCAP} & G CAPITAL PUBLIC COMPANY L & mai & Finance and  & 2013-12 & 2026-08 & 153 & 83.6\% & \textcolor{normalgreen}{Normal} \\
+276 & \ft{GEL} & GENERAL ENGINEERING PUBLIC & SET & Construction & 1991-03 & 2026-08 & 426 & 60.0\% & \textcolor{normalgreen}{Normal} \\
+277 & \ft{GENCO} & GENERAL ENVIRONMENTAL CONS & SET & Professional & 2000-09 & 2026-08 & 312 & 73.0\% & \textcolor{normalgreen}{Normal} \\
+278 & \ft{GFC} & Genesis Fertility Center P & mai & nan & 2023-09 & 2026-08 & 36 & 77.1\% & \textcolor{normalgreen}{Normal} \\
+279 & \ft{GFPT} & GFPT PUBLIC COMPANY LIMITE & SET & Agribusiness & 1992-03 & 2026-08 & 414 & 69.1\% & \textcolor{normalgreen}{Normal} \\
+280 & \ft{GGC} & GLOBAL GREEN CHEMICALS PUB & SET & Petrochemica & 2017-05 & 2026-08 & 112 & 79.9\% & \textcolor{normalgreen}{Normal} \\
+281 & \ft{GJS} & G J STEEL PUBLIC COMPANY L & SET & Steel and Me & 1996-07 & 2026-08 & 362 & 67.6\% & \textcolor{normalgreen}{Normal} \\
+282 & \ft{GLAND} & GRAND CANAL LAND PUBLIC CO & SET & Property Dev & 1996-02 & 2025-06 & 353 & 25.8\% & \textcolor{normalgreen}{Normal} \\
+283 & \ft{GLOBAL} & SIAM GLOBAL HOUSE PUBLIC C & SET & Commerce & 2009-08 & 2026-08 & 205 & 86.6\% & \textcolor{normalgreen}{Normal} \\
+284 & \ft{GLORY} & GLORY FOREVER PUBLIC COMPA & mai & nan & 2021-10 & 2026-08 & 59 & 61.0\% & \textcolor{normalgreen}{Normal} \\
+285 & \ft{GPI} & GRAND PRIX INTERNATIONAL P & SET & Media \& Publ & 2017-12 & 2026-08 & 105 & 77.1\% & \textcolor{normalgreen}{Normal} \\
+286 & \ft{GPSC} & GLOBAL POWER SYNERGY PUBLI & SET & Energy \& Uti & 2015-05 & 2026-08 & 136 & 91.2\% & \textcolor{normalgreen}{Normal} \\
+287 & \ft{GRAMMY} & GMM GRAMMY PUBLIC COMPANY  & SET & Media \& Publ & 1995-02 & 2026-08 & 379 & 65.4\% & \textcolor{normalgreen}{Normal} \\
+288 & \ft{GRAND} & GRANDE ASSET HOTELS AND PR & SET & Tourism \& Le & 2004-02 & 2026-08 & 271 & 26.4\% & \textcolor{alertred}{\textbf{Distress}} \\
+289 & \ft{GREEN} & GREEN RESOURCES PUBLIC COM & SET & Energy \& Uti & 2005-12 & 2026-08 & 249 & 72.1\% & \textcolor{normalgreen}{Normal} \\
+290 & \ft{GROREIT} & GRANDE ROYAL ORCHID HOSPIT & SET & Property Fun & 2021-07 & 2026-08 & 62 & 55.8\% & \textcolor{normalgreen}{Normal} \\
+291 & \ft{GSTEEL} & G STEEL PUBLIC COMPANY LIM & SET & Steel and Me & 2019-07 & 2019-07 & 1 & 26.7\% & \textcolor{normalgreen}{Normal} \\
+292 & \ft{GTB} & GETABEC PUBLIC COMPANY LIM & mai & nan & 2016-03 & 2026-08 & 126 & 78.8\% & \textcolor{normalgreen}{Normal} \\
+293 & \ft{GTV} & GREEN TECH VENTURES PUBLIC & mai & nan & 2023-03 & 2026-08 & 42 & 76.1\% & \textcolor{normalgreen}{Normal} \\
+294 & \ft{GULF} & GULF DEVELOPMENT PUBLIC CO & SET & Energy \& Uti & 2017-12 & 2026-08 & 105 & 34.5\% & \textcolor{normalgreen}{Normal} \\
+295 & \ft{GUNKUL} & GUNKUL ENGINEERING PUBLIC  & SET & Energy \& Uti & 2010-10 & 2026-08 & 191 & 87.0\% & \textcolor{normalgreen}{Normal} \\
+296 & \ft{GVREIT} & GOLDEN VENTURES LEASEHOLD  & SET & Property Fun & 2016-04 & 2026-08 & 125 & 67.7\% & \textcolor{normalgreen}{Normal} \\
+297 & \ft{GYT} & GOODYEAR (THAILAND) PUBLIC & SET & Automotive & 1990-01 & 2026-08 & 440 & 51.3\% & \textcolor{normalgreen}{Normal} \\
+298 & \ft{HANA} & HANA MICROELECTRONICS PUBL & SET & Electronic C & 1993-02 & 2026-08 & 403 & 63.2\% & \textcolor{normalgreen}{Normal} \\
+299 & \ft{HANN} & MUKDAHAN INTERNATIONAL HOS & mai & nan & 2025-08 & 2026-08 & 13 & 22.6\% & \textcolor{normalgreen}{Normal} \\
+300 & \ft{HARN} & HARN ENGINEERING SOLUTIONS & mai & nan & 2014-11 & 2026-08 & 142 & 71.5\% & \textcolor{normalgreen}{Normal} \\
+301 & \ft{HEALTH} & Health Empire Corporation  & mai & nan & 2023-05 & 2026-05 & 37 & 25.8\% & \textcolor{normalgreen}{Normal} \\
+302 & \ft{HENG} & HENG LEASING AND CAPITAL P & SET & Finance \& Se & 2021-10 & 2026-08 & 59 & 74.1\% & \textcolor{normalgreen}{Normal} \\
+303 & \ft{HFT} & HWA FONG RUBBER (THAILAND) & SET & Automotive & 2003-12 & 2026-08 & 273 & 75.8\% & \textcolor{normalgreen}{Normal} \\
+304 & \ft{HL} & HEALTHLEAD PUBLIC COMPANY  & mai & nan & 2021-12 & 2026-08 & 57 & 78.1\% & \textcolor{normalgreen}{Normal} \\
+305 & \ft{HMPRO} & HOME PRODUCT CENTER PUBLIC & SET & Commerce & 2001-10 & 2026-08 & 299 & 91.2\% & \textcolor{normalgreen}{Normal} \\
+306 & \ft{HPF} & HEMARAJ INDUSTRIAL PROPERT & SET & Property Fun & 2014-01 & 2026-08 & 152 & 48.5\% & \textcolor{normalgreen}{Normal} \\
+307 & \ft{HPT} & HOME POTTERY PUBLIC COMPAN & mai & nan & 2015-06 & 2026-07 & 134 & 77.0\% & \textcolor{normalgreen}{Normal} \\
+308 & \ft{HTC} & HAAD THIP PUBLIC COMPANY L & SET & Food \& Bever & 1988-12 & 2026-08 & 453 & 59.3\% & \textcolor{normalgreen}{Normal} \\
+309 & \ft{HTECH} & HALCYON TECHNOLOGY PUBLIC  & SET & Industrial M & 2009-03 & 2026-08 & 210 & 79.6\% & \textcolor{normalgreen}{Normal} \\
+310 & \ft{HUMAN} & HUMANICA PUBLIC COMPANY LI & SET & Information  & 2017-12 & 2026-08 & 105 & 77.8\% & \textcolor{normalgreen}{Normal} \\
+311 & \ft{HYDRO} & HYDROTEK PUBLIC COMPANY LI & mai & nan & 2011-12 & 2026-08 & 177 & 75.4\% & \textcolor{normalgreen}{Normal} \\
+312 & \ft{HYDROGEN} & Hydrogen Freehold and Leas & SET & Property Fun & 2022-12 & 2026-08 & 45 & 57.0\% & \textcolor{normalgreen}{Normal} \\
+313 & \ft{I2} & I2 Enterprise Public Compa & mai & nan & 2023-08 & 2026-08 & 37 & 76.4\% & \textcolor{normalgreen}{Normal} \\
+314 & \ft{ICC} & I.C.C. INTERNATIONAL PUBLI & SET & Commerce & 1984-01 & 2026-08 & 512 & 51.3\% & \textcolor{normalgreen}{Normal} \\
+315 & \ft{ICHI} & ICHITAN GROUP PUBLIC COMPA & SET & Food \& Bever & 2014-04 & 2026-08 & 149 & 82.7\% & \textcolor{normalgreen}{Normal} \\
+316 & \ft{ICN} & INFORMATION AND COMMUNICAT & SET & Information  & 2017-09 & 2026-08 & 108 & 80.1\% & \textcolor{normalgreen}{Normal} \\
+317 & \ft{IDG} & INDIGY PUBLIC COMPANY LIMI & mai & nan & 2025-10 & 2026-08 & 11 & 21.8\% & \textcolor{normalgreen}{Normal} \\
+318 & \ft{IFEC} & Inter Far East Energy Corp & SET & Energy \& Uti & 1988-05 & 2024-07 & 435 & 24.0\% & \textcolor{normalgreen}{Normal} \\
+319 & \ft{IFS} & IFS CAPITAL (THAILAND) PUB & SET & Finance \& Se & 2010-08 & 2026-08 & 193 & 75.9\% & \textcolor{normalgreen}{Normal} \\
+320 & \ft{IHL} & INTERHIDES PUBLIC COMPANY  & SET & Fashion & 2005-12 & 2026-08 & 249 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+321 & \ft{IIG} & I\&I GROUP PUBLIC COMPANY L & mai & nan & 2020-08 & 2026-08 & 73 & 73.8\% & \textcolor{normalgreen}{Normal} \\
+322 & \ft{III} & TRIPLE I LOGISTICS PUBLIC  & SET & Transportati & 2017-09 & 2026-08 & 108 & 83.4\% & \textcolor{normalgreen}{Normal} \\
+323 & \ft{ILINK} & INTERLINK COMMUNICATION PU & SET & Information  & 2004-08 & 2026-08 & 265 & 74.2\% & \textcolor{normalgreen}{Normal} \\
+324 & \ft{ILM} & INDEX LIVING MALL PUBLIC C & SET & Commerce & 2019-07 & 2026-08 & 86 & 84.7\% & \textcolor{normalgreen}{Normal} \\
+325 & \ft{IMH} & INTERMEDICAL CARE AND LAB  & mai & nan & 2019-12 & 2026-08 & 81 & 76.6\% & \textcolor{normalgreen}{Normal} \\
+326 & \ft{IMPACT} & IMPACT GROWTH REAL ESTATE  & SET & Property Fun & 2014-10 & 2026-08 & 143 & 72.1\% & \textcolor{normalgreen}{Normal} \\
+327 & \ft{IND} & INDEX INTERNATIONAL GROUP  & mai & nan & 2020-12 & 2026-08 & 69 & 74.6\% & \textcolor{normalgreen}{Normal} \\
+328 & \ft{INET} & INTERNET THAILAND PUBLIC C & SET & Information  & 2001-11 & 2026-08 & 298 & 72.7\% & \textcolor{normalgreen}{Normal} \\
+329 & \ft{INETREIT} & INET FREEHOLD AND LEASEHOL & SET & Property Fun & 2021-08 & 2026-08 & 61 & 60.3\% & \textcolor{normalgreen}{Normal} \\
+330 & \ft{INGRS} & INGRESS INDUSTRIAL (THAILA & SET & Automotive & 2017-08 & 2026-07 & 108 & 26.1\% & \textcolor{normalgreen}{Normal} \\
+331 & \ft{INOX} & POSCO-THAINOX PUBLIC COMPA & SET & Steel and Me & 2004-12 & 2026-08 & 261 & 70.5\% & \textcolor{normalgreen}{Normal} \\
+332 & \ft{INSET} & INFRASET PUBLIC COMPANY LI & SET & Information  & 2019-10 & 2026-08 & 83 & 75.7\% & \textcolor{normalgreen}{Normal} \\
+333 & \ft{INSURE} & INDARA INSURANCE PUBLIC CO & SET & Insurance & 1991-03 & 2026-08 & 426 & 40.4\% & \textcolor{normalgreen}{Normal} \\
+334 & \ft{IP} & INTER PHARMA PUBLIC COMPAN & SET & Personal Pro & 2019-11 & 2026-08 & 82 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+335 & \ft{IRC} & INOUE RUBBER (THAILAND) PU & SET & Automotive & 1994-08 & 2026-08 & 385 & 67.3\% & \textcolor{normalgreen}{Normal} \\
+336 & \ft{IRCP} & INTERNATIONAL RESEARCH COR & mai & nan & 2003-07 & 2026-08 & 278 & 78.5\% & \textcolor{normalgreen}{Normal} \\
+337 & \ft{IROYAL} & Interroyal Engineering Pub & mai & nan & 2024-11 & 2026-08 & 22 & 24.2\% & \textcolor{normalgreen}{Normal} \\
+338 & \ft{IRPC} & IRPC PUBLIC COMPANY LIMITE & SET & Energy \& Uti & 1995-03 & 2026-08 & 378 & 74.6\% & \textcolor{normalgreen}{Normal} \\
+339 & \ft{ISSARA} & ISSARA REAL ESTATE INVESTM & SET & Property Fun & 2024-12 & 2026-08 & 21 & 42.2\% & \textcolor{normalgreen}{Normal} \\
+340 & \ft{IT} & IT CITY PUBLIC COMPANY LIM & SET & Commerce & 2003-06 & 2026-08 & 279 & 69.5\% & \textcolor{normalgreen}{Normal} \\
+341 & \ft{ITC} & i-Tail Corporation Public  & SET & Food \& Bever & 2022-12 & 2026-08 & 45 & 86.8\% & \textcolor{normalgreen}{Normal} \\
+342 & \ft{ITD} & ITALIAN-THAI DEVELOPMENT P & SET & Construction & 1994-08 & 2026-08 & 385 & 69.3\% & \textcolor{alertred}{\textbf{Distress}} \\
+343 & \ft{ITEL} & INTERLINK TELECOM PUBLIC C & SET & Information  & 2016-09 & 2026-08 & 120 & 88.0\% & \textcolor{normalgreen}{Normal} \\
+344 & \ft{ITNS} & INTERNATIONAL NETWORK SYST & mai & nan & 2022-10 & 2026-08 & 47 & 73.3\% & \textcolor{normalgreen}{Normal} \\
+345 & \ft{ITTHI} & ITTHIRIT NICE CORPORATION  & mai & nan & 2023-03 & 2026-08 & 42 & 77.5\% & \textcolor{normalgreen}{Normal} \\
+346 & \ft{IVF} & INSPIRE IVF Public Company & mai & nan & 2024-12 & 2026-08 & 21 & 24.1\% & \textcolor{normalgreen}{Normal} \\
+347 & \ft{IVL} & INDORAMA VENTURES PUBLIC C & SET & Petrochemica & 2010-02 & 2026-08 & 199 & 97.4\% & \textcolor{normalgreen}{Normal} \\
+348 & \ft{J} & JAS ASSET PUBLIC COMPANY L & SET & Property Dev & 2015-11 & 2026-08 & 130 & 79.6\% & \textcolor{normalgreen}{Normal} \\
+349 & \ft{JAK} & JAKPAISAN ESTATE PUBLIC CO & mai & nan & 2021-01 & 2026-08 & 68 & 77.5\% & \textcolor{normalgreen}{Normal} \\
+350 & \ft{JAS} & JASMINE INTERNATIONAL PUBL & SET & Information  & 1994-07 & 2026-08 & 386 & 60.6\% & \textcolor{normalgreen}{Normal} \\
+351 & \ft{JCK} & JCK INTERNATIONAL PUBLIC C & SET & Property Dev & 2018-05 & 2026-08 & 100 & 78.2\% & \textcolor{alertred}{\textbf{Distress}} \\
+352 & \ft{JCT} & JACK CHIA INDUSTRIES (THAI & SET & Personal Pro & 1990-09 & 2026-08 & 432 & 56.9\% & \textcolor{normalgreen}{Normal} \\
+353 & \ft{JDF} & JD Food Public Company Lim & SET & Food \& Bever & 2022-04 & 2026-08 & 53 & 74.0\% & \textcolor{normalgreen}{Normal} \\
+354 & \ft{JKN} & JKN Global Group PCL & SET & Media \& Publ & 2017-11 & 2025-12 & 98 & 26.1\% & \textcolor{normalgreen}{Normal} \\
+355 & \ft{JMART} & JAYMART GROUP HOLDINGS PUB & SET & Information  & 2009-06 & 2026-08 & 207 & 86.4\% & \textcolor{normalgreen}{Normal} \\
+356 & \ft{JMT} & JMT NETWORK SERVICES PUBLI & SET & Finance \& Se & 2012-11 & 2026-08 & 166 & 84.8\% & \textcolor{normalgreen}{Normal} \\
+357 & \ft{JPARK} & JENKONGKLAI PUBLIC COMPANY & mai & nan & 2023-10 & 2026-08 & 35 & 73.1\% & \textcolor{normalgreen}{Normal} \\
+358 & \ft{JR} & J.R.W. UTILITY PUBLIC COMP & SET & Construction & 2020-11 & 2026-08 & 70 & 76.0\% & \textcolor{normalgreen}{Normal} \\
+359 & \ft{JSP} & JSP PHARMACEUTICAL MANUFAC & mai & nan & 2022-09 & 2026-08 & 48 & 25.6\% & \textcolor{normalgreen}{Normal} \\
+360 & \ft{JTS} & JASMINE TECHNOLOGY SOLUTIO & SET & Information  & 2006-09 & 2026-08 & 240 & 77.7\% & \textcolor{alertred}{\textbf{Distress}} \\
+361 & \ft{JUBILE} & JUBILEE ENTERPRISE PUBLIC  & mai & nan & 2009-11 & 2026-08 & 202 & 78.6\% & \textcolor{normalgreen}{Normal} \\
+362 & \ft{K} & KINGSMEN C.M.T.I. PUBLIC C & mai & nan & 2015-12 & 2026-08 & 129 & 77.6\% & \textcolor{normalgreen}{Normal} \\
+363 & \ft{KAMART} & KARMARTS PUBLIC COMPANY LI & SET & Commerce & 1995-01 & 2026-08 & 380 & 65.6\% & \textcolor{normalgreen}{Normal} \\
+364 & \ft{KASET} & THAI HA PUBLIC COMPANY LIM & mai & nan & 2005-12 & 2026-08 & 249 & 77.5\% & \textcolor{normalgreen}{Normal} \\
+365 & \ft{KBANK} & KASIKORNBANK PUBLIC COMPAN & SET & Banking & 1984-01 & 2026-08 & 512 & 52.1\% & \textcolor{normalgreen}{Normal} \\
+366 & \ft{KBS} & KHONBURI SUGAR PUBLIC COMP & SET & Food \& Bever & 2011-05 & 2026-08 & 184 & 77.2\% & \textcolor{normalgreen}{Normal} \\
+367 & \ft{KBSPIF} & KHONBURI SUGAR POWER PLANT & SET & Energy \& Uti & 2020-08 & 2026-08 & 73 & 43.5\% & \textcolor{normalgreen}{Normal} \\
+368 & \ft{KC} & K.C. PROPERTY PUBLIC COMPA & SET & Property Dev & 1994-10 & 2026-08 & 383 & 61.7\% & \textcolor{normalgreen}{Normal} \\
+369 & \ft{KCAR} & KRUNGTHAI CAR RENT AND LEA & SET & Finance \& Se & 2005-12 & 2026-08 & 249 & 79.7\% & \textcolor{normalgreen}{Normal} \\
+370 & \ft{KCC} & Knight Club Capital Holdin & mai & Finance and  & 2022-05 & 2026-08 & 52 & 25.6\% & \textcolor{normalgreen}{Normal} \\
+371 & \ft{KCE} & KCE ELECTRONICS PUBLIC COM & SET & Electronic C & 1988-08 & 2026-08 & 457 & 66.2\% & \textcolor{normalgreen}{Normal} \\
+372 & \ft{KCG} & KCG CORPORATION PUBLIC COM & SET & Food \& Bever & 2023-08 & 2026-08 & 37 & 76.1\% & \textcolor{normalgreen}{Normal} \\
+373 & \ft{KCM} & K.C. METALSHEET PUBLIC COM & mai & nan & 2014-12 & 2026-08 & 141 & 77.9\% & \textcolor{normalgreen}{Normal} \\
+374 & \ft{KDH} & THONBURI MEDICAL CENTRE PU & SET & Health Care  & 1989-10 & 2026-08 & 443 & 56.8\% & \textcolor{normalgreen}{Normal} \\
+375 & \ft{KGEN} & KING GEN PUBLIC COMPANY LI & mai & nan & 2022-12 & 2026-08 & 45 & 75.5\% & \textcolor{normalgreen}{Normal} \\
+376 & \ft{KGI} & KGI SECURITIES (THAILAND)  & SET & Finance \& Se & 1989-12 & 2026-08 & 441 & 49.6\% & \textcolor{normalgreen}{Normal} \\
+377 & \ft{KIAT} & KIATTANA TRANSPORT PUBLIC  & SET & Transportati & 2009-10 & 2026-08 & 203 & 78.7\% & \textcolor{normalgreen}{Normal} \\
+378 & \ft{KISS} & ROJUKISS INTERNATIONAL PUB & SET & Personal Pro & 2021-02 & 2026-08 & 67 & 78.8\% & \textcolor{normalgreen}{Normal} \\
+379 & \ft{KJL} & KIJCHAROEN ENGINEERING ELE & mai & nan & 2022-11 & 2026-08 & 46 & 77.1\% & \textcolor{normalgreen}{Normal} \\
+380 & \ft{KK} & K\&K SUPERSTORE SOUTHERN PU & mai & nan & 2020-10 & 2026-08 & 71 & 25.9\% & \textcolor{normalgreen}{Normal} \\
+381 & \ft{KKC} & KULTHORN KIRBY PUBLIC COMP & SET & Industrial M & 1991-03 & 2024-07 & 401 & 25.5\% & \textcolor{normalgreen}{Normal} \\
+382 & \ft{KKP} & KIATNAKIN PHATRA BANK PUBL & SET & Banking & 1988-08 & 2026-08 & 457 & 51.1\% & \textcolor{normalgreen}{Normal} \\
+383 & \ft{KLINIQ} & The Klinique Medical Clini & SET & Health Care  & 2022-11 & 2026-08 & 46 & 77.5\% & \textcolor{normalgreen}{Normal} \\
+384 & \ft{KOOL} & CL VENTURE PUBLIC COMPANY  & mai & Home \& Offic & 2015-09 & 2026-08 & 132 & 76.9\% & \textcolor{normalgreen}{Normal} \\
+385 & \ft{KPNREIT} & KPN FREEHOLD AND LEASEHOLD & SET & Property Fun & 2024-12 & 2026-08 & 21 & 38.7\% & \textcolor{normalgreen}{Normal} \\
+386 & \ft{KSL} & KHON KAEN SUGAR INDUSTRY P & SET & Food \& Bever & 2005-03 & 2026-08 & 258 & 81.2\% & \textcolor{normalgreen}{Normal} \\
+387 & \ft{KTB} & KRUNG THAI BANK PUBLIC COM & SET & Banking & 1989-08 & 2026-08 & 445 & 57.8\% & \textcolor{normalgreen}{Normal} \\
+388 & \ft{KTBSTMR} & KTBST MIXED FREEHOLD AND L & SET & Property Fun & 2021-11 & 2026-08 & 58 & 61.8\% & \textcolor{normalgreen}{Normal} \\
+389 & \ft{KTC} & KRUNGTHAI CARD PUBLIC COMP & SET & Finance \& Se & 2002-10 & 2026-08 & 287 & 79.5\% & \textcolor{normalgreen}{Normal} \\
+390 & \ft{KTIS} & KASET THAI INTERNATIONAL S & SET & Food \& Bever & 2014-04 & 2026-08 & 149 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+391 & \ft{KTMS} & KT Medical Service Public  & mai & nan & 2022-12 & 2026-08 & 45 & 76.2\% & \textcolor{normalgreen}{Normal} \\
+392 & \ft{KUMWEL} & KUMWELL CORPORATION PUBLIC & mai & nan & 2019-08 & 2026-08 & 85 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+393 & \ft{KUN} & VILLA KUNALAI PUBLIC COMPA & SET & Property Dev & 2019-12 & 2026-08 & 81 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+394 & \ft{KWC} & KRUNGDHEP SOPHON PUBLIC CO & SET & Transportati & 1990-02 & 2026-08 & 439 & 58.1\% & \textcolor{normalgreen}{Normal} \\
+395 & \ft{KWI} & KWI PUBLIC COMPANY LIMITED & SET & Insurance & 2021-12 & 2025-07 & 44 & 26.4\% & \textcolor{normalgreen}{Normal} \\
+396 & \ft{KWM} & K. W. METAL WORK PUBLIC CO & mai & nan & 2018-10 & 2026-08 & 95 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+397 & \ft{KYE} & KANG YONG ELECTRIC PUBLIC  & SET & Home \& Offic & 1994-05 & 2026-08 & 388 & 55.5\% & \textcolor{normalgreen}{Normal} \\
+398 & \ft{L\&E} & LIGHTING \& EQUIPMENT PUBLI & SET & Home \& Offic & 2005-12 & 2026-08 & 249 & 79.8\% & \textcolor{normalgreen}{Normal} \\
+399 & \ft{LALIN} & LALIN PROPERTY PUBLIC COMP & SET & Property Dev & 2002-11 & 2026-08 & 286 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+400 & \ft{LANNA} & THE LANNA RESOURCES PUBLIC & SET & Energy \& Uti & 1994-07 & 2026-08 & 386 & 64.3\% & \textcolor{normalgreen}{Normal} \\
+401 & \ft{LDC} & LDC DENTAL PUBLIC COMPANY  & mai & nan & 2014-09 & 2026-08 & 144 & 77.0\% & \textcolor{normalgreen}{Normal} \\
+402 & \ft{LEE} & LEE FEED MILL PUBLIC COMPA & SET & Agribusiness & 1990-01 & 2026-08 & 440 & 57.6\% & \textcolor{normalgreen}{Normal} \\
+403 & \ft{LEO} & LEO GLOBAL LOGISTICS PUBLI & mai & Transportati & 2020-11 & 2026-08 & 70 & 77.2\% & \textcolor{normalgreen}{Normal} \\
+404 & \ft{LH} & LAND AND HOUSES PUBLIC COM & SET & Property Dev & 1989-02 & 2026-08 & 451 & 66.1\% & \textcolor{normalgreen}{Normal} \\
+405 & \ft{LHFG} & LH FINANCIAL GROUP PUBLIC  & SET & Banking & 2011-05 & 2026-08 & 184 & 62.7\% & \textcolor{normalgreen}{Normal} \\
+406 & \ft{LHHOTEL} & LH HOTEL LEASEHOLD REAL ES & SET & Property Fun & 2015-12 & 2026-08 & 129 & 69.9\% & \textcolor{normalgreen}{Normal} \\
+407 & \ft{LHK} & LOHAKIT METAL PUBLIC COMPA & SET & Steel and Me & 2008-01 & 2026-08 & 224 & 79.4\% & \textcolor{normalgreen}{Normal} \\
+408 & \ft{LHRREIT} & Land and Houses Residentia & SET & Property Fun & 2024-12 & 2026-08 & 21 & 43.8\% & \textcolor{normalgreen}{Normal} \\
+409 & \ft{LHSC} & LH SHOPPING CENTERS LEASEH & SET & Property Fun & 2014-12 & 2026-08 & 141 & 66.9\% & \textcolor{normalgreen}{Normal} \\
+410 & \ft{LIT} & LEASE IT PUBLIC COMPANY LI & mai & Finance and  & 2014-03 & 2026-08 & 150 & 81.8\% & \textcolor{normalgreen}{Normal} \\
+411 & \ft{LOXLEY} & LOXLEY PUBLIC COMPANY LIMI & SET & Commerce & 1994-01 & 2026-08 & 392 & 67.4\% & \textcolor{normalgreen}{Normal} \\
+412 & \ft{LPH} & LADPRAO GENERAL HOSPITAL P & SET & Health Care  & 2015-10 & 2026-08 & 131 & 79.1\% & \textcolor{normalgreen}{Normal} \\
+413 & \ft{LPN} & L.P.N. DEVELOPMENT PUBLIC  & SET & Property Dev & 1994-12 & 2026-08 & 381 & 67.7\% & \textcolor{normalgreen}{Normal} \\
+414 & \ft{LRH} & LAGUNA RESORTS \& HOTELS PU & SET & Tourism \& Le & 1993-11 & 2025-06 & 380 & 26.0\% & \textcolor{normalgreen}{Normal} \\
+415 & \ft{LST} & LAM SOON (THAILAND) PUBLIC & SET & Food \& Bever & 1996-06 & 2026-08 & 363 & 69.3\% & \textcolor{normalgreen}{Normal} \\
+416 & \ft{LTMH} & LTMH Public Company Limite & mai & nan & 2025-04 & 2026-08 & 17 & 23.5\% & \textcolor{normalgreen}{Normal} \\
+417 & \ft{LTS} & Light Up Total Solution Pu & mai & nan & 2024-05 & 2026-08 & 28 & 24.8\% & \textcolor{normalgreen}{Normal} \\
+418 & \ft{LUXF} & LUXURY REAL ESTATE INVESTM & SET & Property Fun & 2008-06 & 2026-08 & 219 & 50.5\% & \textcolor{normalgreen}{Normal} \\
+419 & \ft{M} & MK RESTAURANT GROUP PUBLIC & SET & Food \& Bever & 2013-08 & 2026-08 & 157 & 75.7\% & \textcolor{normalgreen}{Normal} \\
+420 & \ft{M-CHAI} & MAHACHAI HOSPITAL PUBLIC C & SET & Health Care  & 1996-07 & 2026-08 & 362 & 69.8\% & \textcolor{normalgreen}{Normal} \\
+421 & \ft{M-PAT} & MFC PATONG HERITAGE PROPER & SET & Property Fun & 2014-06 & 2026-08 & 147 & 44.6\% & \textcolor{normalgreen}{Normal} \\
+422 & \ft{M-STOR} & MFC-STRATEGIC STORAGE FUND & SET & Property Fun & 2009-08 & 2026-08 & 205 & 41.5\% & \textcolor{normalgreen}{Normal} \\
+423 & \ft{MADAME} & MADAME BIOSCIENCE PUBLIC C & SET & Food \& Bever & 2025-08 & 2026-08 & 13 & 74.9\% & \textcolor{normalgreen}{Normal} \\
+424 & \ft{MAGURO} & Maguro Group Public Compan & mai & nan & 2024-06 & 2026-08 & 27 & 24.7\% & \textcolor{normalgreen}{Normal} \\
+425 & \ft{MAJOR} & MAJOR CINEPLEX GROUP PUBLI & SET & Media \& Publ & 2002-05 & 2026-08 & 292 & 82.1\% & \textcolor{normalgreen}{Normal} \\
+426 & \ft{MALEE} & MALEE GROUP PUBLIC COMPANY & SET & Food \& Bever & 1992-03 & 2026-08 & 414 & 62.6\% & \textcolor{normalgreen}{Normal} \\
+427 & \ft{MANRIN} & THE MANDARIN HOTEL PUBLIC  & SET & Tourism \& Le & 1991-09 & 2026-08 & 420 & 57.5\% & \textcolor{normalgreen}{Normal} \\
+428 & \ft{MASTEC} & Masstec Link Public Compan & SET & Industrial M & 2025-10 & 2026-08 & 11 & 37.3\% & \textcolor{normalgreen}{Normal} \\
+429 & \ft{MASTER} & Master Style Public Compan & SET & Health Care  & 2023-01 & 2026-08 & 44 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+430 & \ft{MATCH} & MATCHING MAXIMIZE SOLUTION & SET & Media \& Publ & 2003-03 & 2026-08 & 282 & 77.1\% & \textcolor{normalgreen}{Normal} \\
+431 & \ft{MATI} & MATICHON PUBLIC COMPANY LI & SET & Media \& Publ & 1989-12 & 2026-08 & 441 & 57.9\% & \textcolor{normalgreen}{Normal} \\
+432 & \ft{MBAX} & MULTIBAX PUBLIC COMPANY LI & mai & nan & 2007-01 & 2026-08 & 236 & 78.0\% & \textcolor{normalgreen}{Normal} \\
+433 & \ft{MBK} & MBK PUBLIC COMPANY LIMITED & SET & Property Dev & 1996-04 & 2026-08 & 365 & 68.0\% & \textcolor{normalgreen}{Normal} \\
+434 & \ft{MC} & MC GROUP PUBLIC COMPANY LI & SET & Commerce & 2013-07 & 2026-08 & 158 & 81.5\% & \textcolor{normalgreen}{Normal} \\
+435 & \ft{MCA} & Market Connections Asia Pu & mai & nan & 2023-10 & 2026-08 & 35 & 25.1\% & \textcolor{normalgreen}{Normal} \\
+436 & \ft{MCOT} & MCOT PUBLIC COMPANY LIMITE & SET & Media \& Publ & 2004-11 & 2026-08 & 262 & 74.8\% & \textcolor{normalgreen}{Normal} \\
+437 & \ft{MCS} & M.C.S.STEEL PUBLIC COMPANY & SET & Steel and Me & 2005-07 & 2026-08 & 254 & 74.1\% & \textcolor{normalgreen}{Normal} \\
+438 & \ft{MDX} & M.D.X. PUBLIC COMPANY LIMI & SET & Energy \& Uti & 1992-03 & 2026-08 & 414 & 59.6\% & \textcolor{normalgreen}{Normal} \\
+439 & \ft{MEB} & MEB Corporation Public Com & mai & nan & 2023-02 & 2026-08 & 43 & 78.1\% & \textcolor{normalgreen}{Normal} \\
+440 & \ft{MEDEZE} & Medeze Group Public Compan & SET & Health Care  & 2024-10 & 2026-08 & 23 & 70.1\% & \textcolor{normalgreen}{Normal} \\
+441 & \ft{MEGA} & MEGA LIFESCIENCES PUBLIC C & SET & Commerce & 2013-11 & 2026-08 & 154 & 88.7\% & \textcolor{normalgreen}{Normal} \\
+442 & \ft{MENA} & MENA TRANSPORT PUBLIC COMP & SET & Transportati & 2021-07 & 2026-08 & 62 & 79.1\% & \textcolor{normalgreen}{Normal} \\
+443 & \ft{META} & META CORPORATION PUBLIC CO & mai & Construction & 2018-05 & 2026-07 & 99 & 72.7\% & \textcolor{normalgreen}{Normal} \\
+444 & \ft{METCO} & MURAMOTO ELECTRON (THAILAN & SET & Electronic C & 1992-08 & 2026-08 & 409 & 63.1\% & \textcolor{normalgreen}{Normal} \\
+445 & \ft{MFC} & MFC ASSET MANAGEMENT PUBLI & SET & Finance \& Se & 1991-06 & 2026-08 & 423 & 41.7\% & \textcolor{normalgreen}{Normal} \\
+446 & \ft{MFEC} & MFEC PUBLIC COMPANY LIMITE & SET & Information  & 2003-10 & 2026-08 & 275 & 80.9\% & \textcolor{normalgreen}{Normal} \\
+447 & \ft{MGC} & Millennium Group Corporati & SET & Automotive & 2023-04 & 2026-08 & 41 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+448 & \ft{MGI} & Miss Grand International P & mai & nan & 2023-12 & 2026-08 & 33 & 25.1\% & \textcolor{normalgreen}{Normal} \\
+449 & \ft{MGT} & MEGACHEM (THAILAND) PUBLIC & mai & nan & 2017-02 & 2026-08 & 115 & 79.0\% & \textcolor{normalgreen}{Normal} \\
+450 & \ft{MICRO} & MICRO LEASING PUBLIC COMPA & SET & Finance \& Se & 2020-10 & 2026-08 & 71 & 78.1\% & \textcolor{normalgreen}{Normal} \\
+451 & \ft{MIDA} & MIDA ASSETS PUBLIC COMPANY & SET & Commerce & 2003-07 & 2026-08 & 278 & 76.1\% & \textcolor{normalgreen}{Normal} \\
+452 & \ft{MII} & MFC Industrial Investment  & SET & Property Fun & 2024-12 & 2026-08 & 21 & 46.0\% & \textcolor{normalgreen}{Normal} \\
+453 & \ft{MILL} & MILLCON STEEL PUBLIC COMPA & SET & Steel and Me & 2007-11 & 2026-07 & 225 & 26.4\% & \textcolor{normalgreen}{Normal} \\
+454 & \ft{MINT} & MINOR INTERNATIONAL PUBLIC & SET & Tourism \& Le & 1990-01 & 2026-08 & 440 & 63.6\% & \textcolor{normalgreen}{Normal} \\
+455 & \ft{MIPF} & MILLIONAIRE PROPERTY FUND & SET & Property Fun & 2006-01 & 2026-08 & 248 & 47.7\% & \textcolor{normalgreen}{Normal} \\
+456 & \ft{MITSIB} & MITSIB LEASING PUBLIC COMP & mai & nan & 2019-06 & 2026-08 & 87 & 78.1\% & \textcolor{normalgreen}{Normal} \\
+457 & \ft{MJD} & MAJOR DEVELOPMENT PUBLIC C & SET & Property Dev & 2007-11 & 2026-08 & 226 & 78.6\% & \textcolor{alertred}{\textbf{Distress}} \\
+458 & \ft{MJLF} & MAJOR CINEPLEX LIFESTYLE L & SET & Property Fun & 2007-07 & 2026-08 & 230 & 57.6\% & \textcolor{normalgreen}{Normal} \\
+459 & \ft{MK} & M.K. REAL ESTATE DEVELOPME & SET & Property Dev & 1990-03 & 2026-08 & 438 & 60.4\% & \textcolor{normalgreen}{Normal} \\
+460 & \ft{ML} & MIDA LEASING PUBLIC CO., L & SET & Finance \& Se & 2005-12 & 2026-08 & 249 & 77.3\% & \textcolor{normalgreen}{Normal} \\
+461 & \ft{MMM} & MMM Capital Public Company & mai & nan & 2025-11 & 2026-08 & 10 & 21.3\% & \textcolor{normalgreen}{Normal} \\
+462 & \ft{MNIT} & MFC-NICHADA THANI PROPERTY & SET & Property Fun & 2005-12 & 2026-08 & 249 & 39.5\% & \textcolor{normalgreen}{Normal} \\
+463 & \ft{MNIT2} & NICHADA THANI PROPERTY FUN & SET & Property Fun & 2009-04 & 2026-08 & 209 & 41.2\% & \textcolor{normalgreen}{Normal} \\
+464 & \ft{MNRF} & MULTI-NATIONAL RESIDENCE F & SET & Property Fun & 2008-06 & 2026-08 & 219 & 40.9\% & \textcolor{normalgreen}{Normal} \\
+465 & \ft{MODERN} & MODERNFORM GROUP PUBLIC CO & SET & Home \& Offic & 1992-03 & 2026-08 & 414 & 62.9\% & \textcolor{normalgreen}{Normal} \\
+466 & \ft{MONO} & MONO NEXT PUBLIC COMPANY L & SET & Media \& Publ & 2013-06 & 2026-08 & 159 & 77.4\% & \textcolor{normalgreen}{Normal} \\
+467 & \ft{MOONG} & MOONG PATTANA INTERNATIONA & mai & Commerce & 2009-10 & 2026-08 & 203 & 80.8\% & \textcolor{normalgreen}{Normal} \\
+468 & \ft{MORE} & MORE RETURN PUBLIC COMPANY & mai & nan & 2012-12 & 2026-08 & 165 & 75.9\% & \textcolor{normalgreen}{Normal} \\
+469 & \ft{MOSHI} & Moshi Moshi Retail Corpora & SET & Commerce & 2022-12 & 2026-08 & 45 & 94.1\% & \textcolor{normalgreen}{Normal} \\
+470 & \ft{MOTHER} & Mother Marketing Public Co & mai & nan & 2025-02 & 2026-08 & 19 & 23.9\% & \textcolor{normalgreen}{Normal} \\
+471 & \ft{MPJ} & MPJ Logistics Public Compa & mai & nan & 2024-11 & 2026-08 & 22 & 24.2\% & \textcolor{normalgreen}{Normal} \\
+472 & \ft{MRDIYT} & MR. D.I.Y. HOLDING (THAILA & SET & Commerce & 2025-11 & 2026-08 & 10 & 65.7\% & \textcolor{normalgreen}{Normal} \\
+473 & \ft{MSC} & METRO SYSTEMS CORPORATION  & SET & Information  & 1996-05 & 2026-08 & 364 & 71.9\% & \textcolor{normalgreen}{Normal} \\
+474 & \ft{MST} & MAYBANK SECURITIES (THAILA & SET & Finance \& Se & 2003-12 & 2026-08 & 273 & 58.2\% & \textcolor{normalgreen}{Normal} \\
+475 & \ft{MTC} & MUANGTHAI CAPITAL PUBLIC C & SET & Finance \& Se & 2014-11 & 2026-08 & 142 & 89.5\% & \textcolor{normalgreen}{Normal} \\
+476 & \ft{MTI} & MUANG THAI INSURANCE PUBLI & SET & Insurance & 2008-06 & 2026-08 & 219 & 50.4\% & \textcolor{normalgreen}{Normal} \\
+477 & \ft{MTW} & MAKE TO WIN HOLDING PUBLIC & mai & nan & 2022-12 & 2026-08 & 45 & 75.6\% & \textcolor{normalgreen}{Normal} \\
+478 & \ft{MUD} & MUD \& HOUND PUBLIC COMPANY & mai & Food and Bev & 2017-04 & 2026-08 & 113 & 76.4\% & \textcolor{normalgreen}{Normal} \\
+479 & \ft{MVP} & M VISION PUBLIC COMPANY LI & mai & nan & 2018-08 & 2026-07 & 96 & 74.1\% & \textcolor{normalgreen}{Normal} \\
+480 & \ft{NAM} & NAMWIWAT MEDICAL CORPORATI & SET & Personal Pro & 2023-10 & 2026-08 & 35 & 74.6\% & \textcolor{normalgreen}{Normal} \\
+481 & \ft{NAT} & NAT ABSOLUTE TECHNOLOGIES  & mai & nan & 2024-02 & 2026-08 & 31 & 24.9\% & \textcolor{normalgreen}{Normal} \\
+482 & \ft{NATION} & NATION GROUP (THAILAND) PU & SET & Media \& Publ & 2022-05 & 2026-08 & 52 & 73.1\% & \textcolor{normalgreen}{Normal} \\
+483 & \ft{NC} & NEWCITY (BANGKOK) PUBLIC C & SET & Fashion & 1984-02 & 2026-08 & 511 & 55.4\% & \textcolor{normalgreen}{Normal} \\
+484 & \ft{NCAP} & NEXT CAPITAL PUBLIC COMPAN & SET & Finance \& Se & 2020-11 & 2026-08 & 70 & 75.0\% & \textcolor{normalgreen}{Normal} \\
+485 & \ft{NCH} & N. C. HOUSING PUBLIC COMPA & SET & Property Dev & 2004-03 & 2026-08 & 270 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+486 & \ft{NCL} & NCL INTERNATIONAL LOGISTIC & mai & nan & 2014-11 & 2026-08 & 142 & 76.2\% & \textcolor{normalgreen}{Normal} \\
+487 & \ft{NCP} & Nice Call Public Company L & mai & nan & 2024-07 & 2026-08 & 26 & 24.5\% & \textcolor{normalgreen}{Normal} \\
+488 & \ft{NDR} & N.D. RUBBER PUBLIC COMPANY & mai & nan & 2015-01 & 2026-08 & 140 & 82.3\% & \textcolor{normalgreen}{Normal} \\
+489 & \ft{NEO} & Neo Corporate Public Compa & SET & Personal Pro & 2024-04 & 2026-08 & 29 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+490 & \ft{NEP} & NEP REALTY AND INDUSTRY PU & SET & Fashion & 1988-05 & 2026-08 & 460 & 57.9\% & \textcolor{normalgreen}{Normal} \\
+491 & \ft{NER} & NORTH EAST RUBBER PUBLIC C & SET & Agribusiness & 2018-11 & 2026-08 & 94 & 84.1\% & \textcolor{normalgreen}{Normal} \\
+492 & \ft{NETBAY} & NETBAY PUBLIC COMPANY LIMI & mai & nan & 2016-06 & 2026-08 & 123 & 68.3\% & \textcolor{normalgreen}{Normal} \\
+493 & \ft{NEW} & WATTANA KARNPAET PUBLIC CO & SET & Health Care  & 1996-08 & 2026-07 & 360 & 64.8\% & \textcolor{normalgreen}{Normal} \\
+494 & \ft{NEX} & NEX POINT PUBLIC COMPANY L & SET & Automotive & 2019-05 & 2026-08 & 88 & 76.9\% & \textcolor{normalgreen}{Normal} \\
+495 & \ft{NFC} & NFC PUBLIC COMPANY LIMITED & SET & Petrochemica & 1996-08 & 2025-06 & 347 & 24.5\% & \textcolor{normalgreen}{Normal} \\
+496 & \ft{NKI} & THE NAVAKIJ INSURANCE PUBL & SET & Insurance & 1990-08 & 2026-08 & 433 & 45.9\% & \textcolor{normalgreen}{Normal} \\
+497 & \ft{NKT} & Nakornthon Hospital Public & SET & Health Care  & 2024-12 & 2026-08 & 21 & 73.2\% & \textcolor{normalgreen}{Normal} \\
+498 & \ft{NL} & NL Development Public Comp & SET & Construction & 2024-02 & 2026-08 & 31 & 74.0\% & \textcolor{normalgreen}{Normal} \\
+499 & \ft{NNCL} & NAVANAKORN PUBLIC COMPANY  & SET & Property Dev & 2005-12 & 2026-08 & 249 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+500 & \ft{NOBLE} & NOBLE DEVELOPMENT PUBLIC C & SET & Property Dev & 1997-06 & 2026-08 & 351 & 72.3\% & \textcolor{normalgreen}{Normal} \\
+501 & \ft{NOVA} & NOVA EMPIRE PUBLIC COMPANY & SET & Energy \& Uti & 1993-01 & 2026-08 & 404 & 55.7\% & \textcolor{normalgreen}{Normal} \\
+502 & \ft{NPK} & NEW PLUS KNITTING PUBLIC C & mai & nan & 1990-01 & 2026-08 & 440 & 59.2\% & \textcolor{normalgreen}{Normal} \\
+503 & \ft{NRF} & NR INSTANT PRODUCE PUBLIC  & SET & Food \& Bever & 2020-10 & 2026-08 & 71 & 25.9\% & \textcolor{alertred}{\textbf{Distress}} \\
+504 & \ft{NSL} & NSL FOODS PUBLIC COMPANY L & SET & Food \& Bever & 2021-05 & 2026-08 & 64 & 78.0\% & \textcolor{normalgreen}{Normal} \\
+505 & \ft{NTF} & NTF INTERGROUP (THAILAND)  & mai & nan & 2025-12 & 2026-08 & 9 & 20.7\% & \textcolor{normalgreen}{Normal} \\
+506 & \ft{NTSC} & Nutrition SC Public Compan & mai & nan & 2023-02 & 2026-08 & 43 & 77.4\% & \textcolor{normalgreen}{Normal} \\
+507 & \ft{NTV} & NONTHAVEJ HOSPITAL PUBLIC  & SET & Health Care  & 1994-08 & 2026-08 & 385 & 55.3\% & \textcolor{normalgreen}{Normal} \\
+508 & \ft{NUT} & NUTRITION PROFESS PUBLIC C & mai & nan & 2025-06 & 2026-08 & 15 & 23.1\% & \textcolor{normalgreen}{Normal} \\
+509 & \ft{NV} & NOVA ORGANIC PUBLIC COMPAN & SET & Personal Pro & 2021-12 & 2026-08 & 57 & 75.3\% & \textcolor{normalgreen}{Normal} \\
+510 & \ft{NVD} & NIRVANA DEVELOPMENT PUBLIC & SET & Property Dev & 2017-05 & 2026-08 & 112 & 90.3\% & \textcolor{normalgreen}{Normal} \\
+511 & \ft{NWR} & NAWARAT PATANAKARN PUBLIC  & SET & Construction & 1995-09 & 2025-05 & 357 & 26.1\% & \textcolor{alertred}{\textbf{Distress}} \\
+512 & \ft{NYT} & NAMYONG TERMINAL PUBLIC CO & SET & Transportati & 2013-11 & 2026-08 & 154 & 83.2\% & \textcolor{normalgreen}{Normal} \\
+513 & \ft{OCC} & O.C.C. PUBLIC COMPANY LIMI & SET & Personal Pro & 1987-08 & 2026-08 & 469 & 51.3\% & \textcolor{normalgreen}{Normal} \\
+514 & \ft{OGC} & OCEAN GLASS PUBLIC COMPANY & SET & Home \& Offic & 1993-08 & 2026-08 & 397 & 62.7\% & \textcolor{normalgreen}{Normal} \\
+515 & \ft{OHTL} & OHTL PUBLIC COMPANY LIMITE & SET & Tourism \& Le & 1988-06 & 2026-08 & 459 & 58.1\% & \textcolor{normalgreen}{Normal} \\
+516 & \ft{OKJ} & Pluk Phak Praw Rak Mae Pub & SET & Food \& Bever & 2024-10 & 2026-08 & 23 & 74.1\% & \textcolor{normalgreen}{Normal} \\
+517 & \ft{ONEE} & THE ONE ENTERPRISE PUBLIC  & SET & Media \& Publ & 2021-11 & 2026-08 & 58 & 78.0\% & \textcolor{normalgreen}{Normal} \\
+518 & \ft{ONSENS} & Onsen Retreat and Spa Grou & SET & Tourism \& Le & 2025-10 & 2026-08 & 11 & 71.5\% & \textcolor{normalgreen}{Normal} \\
+519 & \ft{OR} & PTT OIL AND RETAIL BUSINES & SET & Energy \& Uti & 2021-02 & 2026-08 & 67 & 93.5\% & \textcolor{normalgreen}{Normal} \\
+520 & \ft{ORI} & ORIGIN PROPERTY PUBLIC COM & SET & Property Dev & 2015-10 & 2026-08 & 131 & 90.6\% & \textcolor{normalgreen}{Normal} \\
+521 & \ft{ORN} & ORNSIRIN HOLDING PUBLIC CO & SET & Property Dev & 2023-10 & 2026-08 & 35 & 75.0\% & \textcolor{normalgreen}{Normal} \\
+522 & \ft{OSP} & OSOTSPA PUBLIC COMPANY LIM & SET & Food \& Bever & 2018-10 & 2026-08 & 95 & 94.1\% & \textcolor{normalgreen}{Normal} \\
+523 & \ft{PACE} & Pace Development Corporati & SET & Property Dev & 2013-08 & 2024-07 & 132 & 25.4\% & \textcolor{normalgreen}{Normal} \\
+524 & \ft{PACO} & PRESIDENT AUTOMOBILE INDUS & mai & nan & 2021-03 & 2026-08 & 66 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+525 & \ft{PAF} & PAN ASIA FOOTWEAR PUBLIC C & SET & Fashion & 1990-01 & 2026-08 & 440 & 59.4\% & \textcolor{normalgreen}{Normal} \\
+526 & \ft{PANEL} & PanelesMatic Solutions Pub & mai & nan & 2024-02 & 2026-08 & 31 & 24.9\% & \textcolor{normalgreen}{Normal} \\
+527 & \ft{PAP} & PACIFIC PIPE PUBLIC COMPAN & SET & Steel and Me & 2005-12 & 2026-08 & 249 & 81.0\% & \textcolor{normalgreen}{Normal} \\
+528 & \ft{PATO} & PATO CHEMICAL INDUSTRY PUB & SET & Petrochemica & 1995-09 & 2026-08 & 372 & 65.3\% & \textcolor{normalgreen}{Normal} \\
+529 & \ft{PB} & PRESIDENT BAKERY PUBLIC CO & SET & Food \& Bever & 2002-12 & 2026-08 & 285 & 79.6\% & \textcolor{normalgreen}{Normal} \\
+530 & \ft{PCC} & Precise Corporation Public & SET & Industrial M & 2022-10 & 2026-08 & 47 & 82.9\% & \textcolor{normalgreen}{Normal} \\
+531 & \ft{PCE} & PETCHSRIVICHAI ENTERPRISE  & SET & Agribusiness & 2024-09 & 2026-08 & 24 & 73.2\% & \textcolor{normalgreen}{Normal} \\
+532 & \ft{PCSGH} & P.C.S. MACHINE GROUP HOLDI & SET & Automotive & 2014-03 & 2026-08 & 150 & 83.2\% & \textcolor{normalgreen}{Normal} \\
+533 & \ft{PDG} & PRODIGY PUBLIC COMPANY LIM & mai & nan & 2014-07 & 2026-08 & 146 & 65.8\% & \textcolor{normalgreen}{Normal} \\
+534 & \ft{PDJ} & PRANDA JEWELRY PUBLIC COMP & SET & Fashion & 2018-01 & 2026-08 & 104 & 79.9\% & \textcolor{normalgreen}{Normal} \\
+535 & \ft{PEACE} & PEACE \& LIVING PUBLIC COMP & SET & Property Dev & 2022-02 & 2026-08 & 55 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+536 & \ft{PEER} & PEER FOR YOU PUBLIC COMPAN & mai & nan & 2024-03 & 2026-08 & 30 & 89.7\% & \textcolor{normalgreen}{Normal} \\
+537 & \ft{PERM} & PERMSIN STEEL WORKS PUBLIC & SET & Steel and Me & 2005-12 & 2026-08 & 249 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+538 & \ft{PF} & PROPERTY PERFECT PUBLIC CO & SET & Property Dev & 1993-06 & 2026-08 & 399 & 25.6\% & \textcolor{alertred}{\textbf{Distress}} \\
+539 & \ft{PG} & PEOPLE'S GARMENT PUBLIC CO & SET & Fashion & 1990-01 & 2026-08 & 440 & 54.3\% & \textcolor{normalgreen}{Normal} \\
+540 & \ft{PHG} & Patrangsit Healthcare Grou & SET & Health Care  & 2023-07 & 2026-08 & 38 & 76.0\% & \textcolor{normalgreen}{Normal} \\
+541 & \ft{PHOL} & PHOL DHANYA PUBLIC COMPANY & mai & Professional & 2010-12 & 2026-08 & 189 & 82.9\% & \textcolor{normalgreen}{Normal} \\
+542 & \ft{PICO} & PICO (THAILAND) PUBLIC COM & mai & nan & 2005-12 & 2026-03 & 244 & 76.5\% & \textcolor{normalgreen}{Normal} \\
+543 & \ft{PIMO} & PIONEER MOTOR PUBLIC COMPA & mai & nan & 2015-08 & 2026-08 & 133 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+544 & \ft{PIN} & PINTHONG INDUSTRIAL PARK P & SET & Property Dev & 2021-11 & 2026-08 & 58 & 77.2\% & \textcolor{normalgreen}{Normal} \\
+545 & \ft{PIS} & Pro Inside Public Company  & mai & nan & 2025-01 & 2026-08 & 20 & 24.0\% & \textcolor{normalgreen}{Normal} \\
+546 & \ft{PJW} & PANJAWATTANA PLASTIC PUBLI & SET & Packaging & 2012-02 & 2026-08 & 175 & 79.4\% & \textcolor{normalgreen}{Normal} \\
+547 & \ft{PK} & PATKOL PUBLIC COMPANY LIMI & SET & Industrial M & 1992-03 & 2026-08 & 414 & 57.2\% & \textcolor{normalgreen}{Normal} \\
+548 & \ft{PL} & PHATRA LEASING PUBLIC COMP & SET & Finance \& Se & 1996-08 & 2026-08 & 361 & 64.8\% & \textcolor{normalgreen}{Normal} \\
+549 & \ft{PLANB} & PLAN B MEDIA PUBLIC COMPAN & SET & Media \& Publ & 2015-02 & 2026-08 & 139 & 88.7\% & \textcolor{normalgreen}{Normal} \\
+550 & \ft{PLANET} & PLANET COMMUNICATIONS ASIA & mai & Information  & 2017-09 & 2026-08 & 108 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+551 & \ft{PLAT} & THE PLATINUM GROUP PUBLIC  & SET & Property Dev & 2015-03 & 2026-08 & 138 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+552 & \ft{PLE} & POWER LINE ENGINEERING PUB & SET & Construction & 2002-12 & 2026-08 & 285 & 76.7\% & \textcolor{normalgreen}{Normal} \\
+553 & \ft{PLT} & Pilatus Marine Public Comp & mai & nan & 2023-04 & 2026-08 & 41 & 74.2\% & \textcolor{normalgreen}{Normal} \\
+554 & \ft{PLUS} & Royal Plus Public Company  & SET & Food \& Bever & 2022-05 & 2026-08 & 52 & 82.0\% & \textcolor{normalgreen}{Normal} \\
+555 & \ft{PM} & PREMIER MARKETING PUBLIC C & SET & Food \& Bever & 2008-05 & 2026-08 & 220 & 84.5\% & \textcolor{normalgreen}{Normal} \\
+556 & \ft{PMC} & PMC Label Materials Public & mai & nan & 2024-09 & 2026-08 & 24 & 24.4\% & \textcolor{normalgreen}{Normal} \\
+557 & \ft{PMTA} & PM THORESEN ASIA HOLDINGS  & SET & Petrochemica & 2015-05 & 2026-08 & 136 & 78.7\% & \textcolor{normalgreen}{Normal} \\
+558 & \ft{POLY} & Polynet Public Company Lim & SET & Automotive & 2022-11 & 2026-08 & 46 & 76.5\% & \textcolor{normalgreen}{Normal} \\
+559 & \ft{POPF} & PRIME OFFICE LEASEHOLD PRO & SET & Property Fun & 2011-04 & 2026-08 & 185 & 64.3\% & \textcolor{normalgreen}{Normal} \\
+560 & \ft{PORT} & SAHATHAI TERMINAL PUBLIC C & SET & Transportati & 2017-11 & 2026-08 & 106 & 78.6\% & \textcolor{normalgreen}{Normal} \\
+561 & \ft{POWER} & POWER SOLUTION TECHNOLOGIE & mai & nan & 2014-12 & 2026-08 & 141 & 78.9\% & \textcolor{alertred}{\textbf{Distress}} \\
+562 & \ft{PPM} & PORN PROM METAL PUBLIC COM & mai & nan & 2005-12 & 2026-08 & 249 & 77.5\% & \textcolor{normalgreen}{Normal} \\
+563 & \ft{PPP} & PREMIER PRODUCTS PUBLIC CO & SET & Construction & 2013-02 & 2026-08 & 163 & 84.5\% & \textcolor{normalgreen}{Normal} \\
+564 & \ft{PPPM} & PP PRIME PUBLIC COMPANY LI & SET & Agribusiness & 2018-09 & 2026-08 & 96 & 76.1\% & \textcolor{normalgreen}{Normal} \\
+565 & \ft{PPS} & PROJECT PLANNING SERVICE P & mai & Construction & 2012-09 & 2026-08 & 168 & 81.4\% & \textcolor{normalgreen}{Normal} \\
+566 & \ft{PQS} & Premier Quality Starch Pub & SET & Food \& Bever & 2023-02 & 2026-08 & 43 & 76.6\% & \textcolor{normalgreen}{Normal} \\
+567 & \ft{PR9} & PRARAM 9 HOSPITAL PUBLIC C & SET & Health Care  & 2018-10 & 2026-08 & 95 & 82.9\% & \textcolor{normalgreen}{Normal} \\
+568 & \ft{PRAKIT} & PRAKIT HOLDINGS PUBLIC COM & SET & Media \& Publ & 1991-07 & 2026-08 & 422 & 50.1\% & \textcolor{normalgreen}{Normal} \\
+569 & \ft{PRAPAT} & PEERAPAT TECHNOLOGY PUBLIC & mai & nan & 2020-10 & 2026-08 & 71 & 78.1\% & \textcolor{normalgreen}{Normal} \\
+570 & \ft{PREB} & PRE-BUILT PUBLIC COMPANY L & SET & Construction & 2005-12 & 2026-08 & 249 & 78.7\% & \textcolor{normalgreen}{Normal} \\
+571 & \ft{PRECHA} & PREECHA GROUP PUBLIC COMPA & SET & Property Dev & 1996-04 & 2026-08 & 365 & 64.6\% & \textcolor{normalgreen}{Normal} \\
+572 & \ft{PRG} & PRG CORPORATION PUBLIC COM & SET & Food \& Bever & 1993-09 & 2026-08 & 396 & 63.7\% & \textcolor{normalgreen}{Normal} \\
+573 & \ft{PRI} & Primo Service Solutions Pu & mai & nan & 2022-11 & 2026-08 & 46 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+574 & \ft{PRIME} & PRIME ROAD POWER PUBLIC CO & SET & Energy \& Uti & 2019-08 & 2026-08 & 85 & 78.5\% & \textcolor{alertred}{\textbf{Distress}} \\
+575 & \ft{PRIN} & PRINSIRI PUBLIC COMPANY LI & SET & Property Dev & 2005-12 & 2026-08 & 249 & 79.7\% & \textcolor{normalgreen}{Normal} \\
+576 & \ft{PRINC} & PRINCIPAL CAPITAL PUBLIC C & SET & Health Care  & 2005-10 & 2026-08 & 251 & 76.1\% & \textcolor{normalgreen}{Normal} \\
+577 & \ft{PRM} & PRIMA MARINE PUBLIC COMPAN & SET & Transportati & 2017-09 & 2026-08 & 108 & 90.1\% & \textcolor{normalgreen}{Normal} \\
+578 & \ft{PROEN} & PROEN CORP PUBLIC COMPANY  & mai & Information  & 2021-04 & 2026-08 & 65 & 77.6\% & \textcolor{alertred}{\textbf{Distress}} \\
+579 & \ft{PROS} & PROSPER ENGINEERING PUBLIC & mai & nan & 2021-04 & 2026-08 & 65 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+580 & \ft{PROSPECT} & PROSPECT LOGISTICS AND IND & SET & Property Fun & 2020-08 & 2026-08 & 73 & 54.6\% & \textcolor{normalgreen}{Normal} \\
+581 & \ft{PROUD} & PROUD REAL ESTATE PUBLIC C & SET & Property Dev & 2019-05 & 2026-08 & 88 & 77.8\% & \textcolor{normalgreen}{Normal} \\
+582 & \ft{PRTR} & PRTR Group Public Company  & SET & Professional & 2023-03 & 2026-08 & 42 & 73.7\% & \textcolor{normalgreen}{Normal} \\
+583 & \ft{PSGC} & PSG CORPORATION PUBLIC COM & mai & nan & 2006-09 & 2026-08 & 240 & 76.2\% & \textcolor{normalgreen}{Normal} \\
+584 & \ft{PSH} & PRUKSA HOLDING PUBLIC COMP & SET & Property Dev & 2016-12 & 2026-08 & 117 & 91.9\% & \textcolor{normalgreen}{Normal} \\
+585 & \ft{PSL} & PRECIOUS SHIPPING PUBLIC C & SET & Transportati & 1993-09 & 2026-08 & 396 & 67.1\% & \textcolor{normalgreen}{Normal} \\
+586 & \ft{PSP} & P.S.P.Specialties Public C & SET & Industrial M & 2023-08 & 2026-08 & 37 & 76.9\% & \textcolor{normalgreen}{Normal} \\
+587 & \ft{PT} & PREMIER TECHNOLOGY PUBLIC  & SET & Information  & 2006-07 & 2026-08 & 242 & 83.5\% & \textcolor{normalgreen}{Normal} \\
+588 & \ft{PTC} & PREMIER TANK CORPORATION P & mai & nan & 2022-02 & 2026-08 & 55 & 71.8\% & \textcolor{normalgreen}{Normal} \\
+589 & \ft{PTG} & PTG ENERGY PUBLIC COMPANY  & SET & Energy \& Uti & 2013-05 & 2026-08 & 160 & 88.4\% & \textcolor{normalgreen}{Normal} \\
+590 & \ft{PTL} & POLYPLEX (THAILAND) PUBLIC & SET & Packaging & 2004-12 & 2026-08 & 261 & 79.2\% & \textcolor{normalgreen}{Normal} \\
+591 & \ft{PTT} & PTT PUBLIC COMPANY LIMITED & SET & Energy \& Uti & 2001-12 & 2026-08 & 297 & 89.9\% & \textcolor{normalgreen}{Normal} \\
+592 & \ft{PTTEP} & PTT EXPLORATION AND PRODUC & SET & Energy \& Uti & 1993-06 & 2026-08 & 399 & 63.5\% & \textcolor{normalgreen}{Normal} \\
+593 & \ft{PTTGC} & PTT GLOBAL CHEMICAL PUBLIC & SET & Petrochemica & 2011-10 & 2026-08 & 179 & 95.8\% & \textcolor{normalgreen}{Normal} \\
+594 & \ft{PYLON} & PYLON PUBLIC COMPANY LIMIT & SET & Construction & 2005-12 & 2026-08 & 249 & 78.8\% & \textcolor{normalgreen}{Normal} \\
+595 & \ft{Q-CON} & QUALITY CONSTRUCTION PRODU & SET & Construction & 2004-01 & 2026-08 & 272 & 76.3\% & \textcolor{normalgreen}{Normal} \\
+596 & \ft{QDC} & QUANTUM D C PUBLIC COMPANY & mai & nan & 2018-05 & 2026-08 & 100 & 76.0\% & \textcolor{normalgreen}{Normal} \\
+597 & \ft{QH} & QUALITY HOUSES PUBLIC COMP & SET & Property Dev & 1991-09 & 2026-08 & 420 & 68.5\% & \textcolor{normalgreen}{Normal} \\
+598 & \ft{QHBREIT} & Quality Houses Business Co & SET & Property Fun & 2024-12 & 2026-08 & 21 & 43.8\% & \textcolor{normalgreen}{Normal} \\
+599 & \ft{QHHRREIT} & Quality Houses Hotel and R & SET & Property Fun & 2024-05 & 2026-08 & 28 & 67.3\% & \textcolor{normalgreen}{Normal} \\
+600 & \ft{QHOP} & QUALITY HOSPITALITY LEASEH & SET & Property Fun & 2008-04 & 2026-08 & 221 & 44.6\% & \textcolor{normalgreen}{Normal} \\
+601 & \ft{QLT} & QUALITECH PUBLIC COMPANY L & mai & nan & 2009-06 & 2026-08 & 207 & 78.7\% & \textcolor{normalgreen}{Normal} \\
+602 & \ft{QTC} & QTC ENERGY PUBLIC COMPANY  & SET & Industrial M & 2011-07 & 2026-08 & 182 & 82.7\% & \textcolor{normalgreen}{Normal} \\
+603 & \ft{QTCG} & QTCG PUBLIC COMPANY LIMITE & mai & nan & 2024-04 & 2026-08 & 29 & 24.8\% & \textcolor{normalgreen}{Normal} \\
+604 & \ft{RABBIT} & RABBIT HOLDINGS PUBLIC COM & SET & Property Dev & 2022-12 & 2026-08 & 45 & 75.3\% & \textcolor{normalgreen}{Normal} \\
+605 & \ft{RAM} & RAMKHAMHAENG HOSPITAL PUBL & SET & Health Care  & 1991-09 & 2026-08 & 420 & 61.8\% & \textcolor{normalgreen}{Normal} \\
+606 & \ft{RATCH} & RATCH GROUP PUBLIC COMPANY & SET & Energy \& Uti & 2000-11 & 2026-08 & 310 & 80.6\% & \textcolor{normalgreen}{Normal} \\
+607 & \ft{RBF} & R\&B FOOD SUPPLY PUBLIC COM & SET & Food \& Bever & 2019-10 & 2026-08 & 83 & 95.7\% & \textcolor{normalgreen}{Normal} \\
+608 & \ft{RCL} & REGIONAL CONTAINER LINES P & SET & Transportati & 1990-01 & 2026-08 & 440 & 63.0\% & \textcolor{normalgreen}{Normal} \\
+609 & \ft{READY} & READYPLANET PUBLIC COMPANY & mai & nan & 2023-02 & 2026-08 & 43 & 71.9\% & \textcolor{normalgreen}{Normal} \\
+610 & \ft{RICH} & Rich Asia Corporation PCL & SET & Steel & 2006-08 & 2020-08 & 169 & 25.9\% & \textcolor{normalgreen}{Normal} \\
+611 & \ft{RICHY} & RICHY PLACE 2002 PUBLIC CO & SET & Property Dev & 2014-08 & 2026-08 & 145 & 79.6\% & \textcolor{alertred}{\textbf{Distress}} \\
+612 & \ft{RJH} & RAJTHANEE HOSPITAL PUBLIC  & SET & Health Care  & 2016-09 & 2026-08 & 120 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+613 & \ft{RML} & RAIMON LAND PUBLIC COMPANY & SET & Property Dev & 1993-09 & 2026-08 & 396 & 62.8\% & \textcolor{normalgreen}{Normal} \\
+614 & \ft{ROCK} & ROCKWORTH PUBLIC COMPANY L & SET & Home \& Offic & 1994-07 & 2026-08 & 386 & 65.3\% & \textcolor{normalgreen}{Normal} \\
+615 & \ft{ROCTEC} & ROCTEC GLOBAL PUBLIC COMPA & SET & Information  & 2023-12 & 2026-08 & 33 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+616 & \ft{ROH} & ROYAL ORCHID HOTEL (THAILA & SET & Tourism \& Le & 1989-07 & 2025-06 & 432 & 25.3\% & \textcolor{normalgreen}{Normal} \\
+617 & \ft{ROJNA} & ROJANA INDUSTRIAL PARK PUB & SET & Property Dev & 1995-12 & 2026-08 & 369 & 66.6\% & \textcolor{normalgreen}{Normal} \\
+618 & \ft{RP} & RAJA FERRY PORT PUBLIC COM & mai & nan & 2015-11 & 2026-08 & 130 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+619 & \ft{RPC} & RPCG PUBLIC COMPANY LIMITE & SET & Energy \& Uti & 2003-11 & 2026-08 & 274 & 76.6\% & \textcolor{normalgreen}{Normal} \\
+620 & \ft{RPH} & RATCHAPHRUEK HOSPITAL PUBL & SET & Health Care  & 2017-02 & 2026-08 & 115 & 78.5\% & \textcolor{normalgreen}{Normal} \\
+621 & \ft{RS} & RS PUBLIC COMPANY LIMITED & SET & Commerce & 2003-05 & 2026-08 & 280 & 81.5\% & \textcolor{normalgreen}{Normal} \\
+622 & \ft{RSP} & RICH SPORT PUBLIC COMPANY  & SET & Commerce & 2017-11 & 2026-08 & 106 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+623 & \ft{RT} & RIGHT TUNNELLING PUBLIC CO & SET & Construction & 2020-11 & 2026-08 & 70 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+624 & \ft{RWI} & RAYONG WIRE INDUSTRIES PUB & mai & nan & 2014-09 & 2026-08 & 144 & 77.3\% & \textcolor{normalgreen}{Normal} \\
+625 & \ft{S} & SINGHA ESTATE PUBLIC COMPA & SET & Property Dev & 2007-04 & 2026-08 & 233 & 82.5\% & \textcolor{normalgreen}{Normal} \\
+626 & \ft{S\&J} & S \& J INTERNATIONAL ENTERP & SET & Personal Pro & 1988-09 & 2026-08 & 456 & 59.4\% & \textcolor{normalgreen}{Normal} \\
+627 & \ft{S11} & S 11 GROUP PUBLIC COMPANY  & SET & Finance \& Se & 2015-02 & 2026-08 & 139 & 76.0\% & \textcolor{normalgreen}{Normal} \\
+628 & \ft{SA} & SIAMESE ASSET PUBLIC COMPA & SET & Property Dev & 2020-12 & 2026-08 & 69 & 77.8\% & \textcolor{normalgreen}{Normal} \\
+629 & \ft{SAAM} & SAAM DEVELOPMENT PUBLIC CO & mai & nan & 2019-01 & 2026-08 & 92 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+630 & \ft{SABINA} & SABINA PUBLIC COMPANY LIMI & SET & Fashion & 2008-05 & 2026-08 & 220 & 83.9\% & \textcolor{normalgreen}{Normal} \\
+631 & \ft{SABUY} & nan & SET & nan & 2020-11 & 2025-05 & 55 & 26.7\% & \textcolor{normalgreen}{Normal} \\
+632 & \ft{SAF} & S.A.F. SPECIAL STEEL PUBLI & mai & nan & 2023-01 & 2026-08 & 44 & 75.8\% & \textcolor{normalgreen}{Normal} \\
+633 & \ft{SAFE} & Safe Fertility Group Publi & SET & Health Care  & 2023-11 & 2026-08 & 34 & 76.7\% & \textcolor{normalgreen}{Normal} \\
+634 & \ft{SAK} & SAKSIAM LEASING PUBLIC COM & SET & Finance \& Se & 2020-12 & 2026-08 & 69 & 95.2\% & \textcolor{normalgreen}{Normal} \\
+635 & \ft{SALEE} & SALEE INDUSTRY PUBLIC COMP & mai & Packaging & 2005-04 & 2026-08 & 257 & 79.1\% & \textcolor{normalgreen}{Normal} \\
+636 & \ft{SAM} & SAMCHAI STEEL INDUSTRIES P & SET & Steel and Me & 2005-12 & 2026-07 & 248 & 26.4\% & \textcolor{normalgreen}{Normal} \\
+637 & \ft{SAMART} & SAMART CORPORATION PUBLIC  & SET & Information  & 1993-12 & 2026-08 & 393 & 64.2\% & \textcolor{normalgreen}{Normal} \\
+638 & \ft{SAMCO} & SAMMAKORN PUBLIC COMPANY L & SET & Property Dev & 1993-06 & 2026-08 & 399 & 63.8\% & \textcolor{normalgreen}{Normal} \\
+639 & \ft{SAMTEL} & SAMART TELCOMS PUBLIC COMP & SET & Information  & 1996-07 & 2026-08 & 362 & 67.7\% & \textcolor{normalgreen}{Normal} \\
+640 & \ft{SANKO} & SANKO DIECASTING (THAILAND & mai & nan & 2013-05 & 2026-08 & 160 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+641 & \ft{SAPPE} & SAPPE PUBLIC COMPANY LIMIT & SET & Food \& Bever & 2014-06 & 2026-08 & 147 & 84.3\% & \textcolor{normalgreen}{Normal} \\
+642 & \ft{SAT} & SOMBOON ADVANCE TECHNOLOGY & SET & Automotive & 2005-01 & 2026-08 & 260 & 83.1\% & \textcolor{normalgreen}{Normal} \\
+643 & \ft{SAUCE} & THAITHEPAROS PUBLIC COMPAN & SET & Food \& Bever & 1995-01 & 2026-08 & 380 & 51.9\% & \textcolor{normalgreen}{Normal} \\
+644 & \ft{SAV} & Samart Aviation Solutions  & SET & Transportati & 2023-09 & 2026-08 & 36 & 72.4\% & \textcolor{normalgreen}{Normal} \\
+645 & \ft{SAWAD} & SRISAWAD CORPORATION PUBLI & SET & Finance \& Se & 2014-05 & 2026-08 & 148 & 85.6\% & \textcolor{normalgreen}{Normal} \\
+646 & \ft{SAWANG} & SAWANG EXPORT PUBLIC COMPA & SET & Fashion & 1991-07 & 2026-08 & 422 & 56.0\% & \textcolor{normalgreen}{Normal} \\
+647 & \ft{SC} & SC ASSET CORPORATION PUBLI & SET & Property Dev & 2003-11 & 2026-08 & 274 & 81.7\% & \textcolor{normalgreen}{Normal} \\
+648 & \ft{SCAP} & SRISAWAD CAPITAL 1969 PUBL & SET & Finance \& Se & 2022-09 & 2026-08 & 48 & 74.5\% & \textcolor{normalgreen}{Normal} \\
+649 & \ft{SCB} & SCB X PUBLIC COMPANY LIMIT & SET & Banking & 1984-01 & 2026-08 & 512 & 29.7\% & \textcolor{normalgreen}{Normal} \\
+650 & \ft{SCC} & THE SIAM CEMENT PUBLIC COM & SET & Construction & 1984-01 & 2026-08 & 512 & 64.9\% & \textcolor{normalgreen}{Normal} \\
+651 & \ft{SCCC} & SIAM CITY CEMENT PUBLIC CO & SET & Construction & 1984-01 & 2026-08 & 512 & 58.7\% & \textcolor{normalgreen}{Normal} \\
+652 & \ft{SCG} & RATCH PATHANA ENERGY PUBLI & SET & Energy \& Uti & 2004-01 & 2026-08 & 272 & 81.9\% & \textcolor{normalgreen}{Normal} \\
+653 & \ft{SCGD} & SCG DECOR PUBLIC COMPANY L & SET & Construction & 2023-12 & 2026-08 & 33 & 84.7\% & \textcolor{normalgreen}{Normal} \\
+654 & \ft{SCGP} & SCG PACKAGING PUBLIC COMPA & SET & Packaging & 2020-10 & 2026-08 & 71 & 96.3\% & \textcolor{normalgreen}{Normal} \\
+655 & \ft{SCI} & SCI ELECTRIC PUBLIC COMPAN & SET & Industrial M & 2015-10 & 2026-08 & 131 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+656 & \ft{SCL} & S.C.L. Motor Part Public C & mai & nan & 2023-11 & 2026-08 & 34 & 25.1\% & \textcolor{normalgreen}{Normal} \\
+657 & \ft{SCM} & SUCCESSMORE BEING PUBLIC C & SET & Commerce & 2020-09 & 2026-08 & 72 & 78.5\% & \textcolor{normalgreen}{Normal} \\
+658 & \ft{SCN} & SCAN INTER PUBLIC COMPANY  & SET & Energy \& Uti & 2015-02 & 2026-08 & 139 & 79.2\% & \textcolor{normalgreen}{Normal} \\
+659 & \ft{SCP} & SOUTHERN CONCRETE PILE PUB & SET & Construction & 1991-06 & 2026-08 & 423 & 25.7\% & \textcolor{normalgreen}{Normal} \\
+660 & \ft{SDC} & SAMART DIGITAL PUBLIC COMP & SET & Information  & 2017-10 & 2026-08 & 107 & 76.9\% & \textcolor{normalgreen}{Normal} \\
+661 & \ft{SE} & SIAMEAST SOLUTIONS PUBLIC  & SET & Industrial M & 2017-02 & 2026-08 & 115 & 78.8\% & \textcolor{normalgreen}{Normal} \\
+662 & \ft{SE-ED} & SE-EDUCATION PUBLIC COMPAN & SET & Media \& Publ & 1991-08 & 2026-08 & 421 & 58.7\% & \textcolor{normalgreen}{Normal} \\
+663 & \ft{SEAFCO} & SEAFCO PUBLIC COMPANY LIMI & SET & Construction & 2005-12 & 2026-08 & 249 & 79.2\% & \textcolor{normalgreen}{Normal} \\
+664 & \ft{SEAOIL} & SEA OIL PUBLIC COMPANY LIM & SET & Energy \& Uti & 2013-09 & 2026-08 & 156 & 78.1\% & \textcolor{normalgreen}{Normal} \\
+665 & \ft{SECURE} & NFORCE SECURE PUBLIC COMPA & mai & nan & 2021-07 & 2026-08 & 62 & 79.0\% & \textcolor{normalgreen}{Normal} \\
+666 & \ft{SEI} & SEI MEDICAL PUBLIC CO., LT & mai & nan & 2024-09 & 2026-08 & 24 & 24.4\% & \textcolor{normalgreen}{Normal} \\
+667 & \ft{SELIC} & SELIC CORP PUBLIC COMPANY  & SET & Industrial M & 2016-10 & 2026-08 & 119 & 85.1\% & \textcolor{normalgreen}{Normal} \\
+668 & \ft{SENA} & SENADEVELOPMENT PUBLIC COM & SET & Property Dev & 2009-07 & 2026-08 & 206 & 79.5\% & \textcolor{normalgreen}{Normal} \\
+669 & \ft{SENX} & SEN X PUBLIC COMPANY LIMIT & mai & Property Dev & 2014-11 & 2026-08 & 142 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+670 & \ft{SFLEX} & STARFLEX PUBLIC COMPANY LI & SET & Packaging & 2019-12 & 2026-08 & 81 & 78.6\% & \textcolor{normalgreen}{Normal} \\
+671 & \ft{SFT} & SHRINKFLEX (THAILAND) PUBL & mai & nan & 2020-10 & 2026-08 & 71 & 73.8\% & \textcolor{normalgreen}{Normal} \\
+672 & \ft{SGC} & SG Capital Public Company  & SET & Finance \& Se & 2022-12 & 2026-08 & 45 & 73.5\% & \textcolor{normalgreen}{Normal} \\
+673 & \ft{SGF} & SGF CAPITAL PUBLIC COMPANY & mai & Finance and  & 1988-02 & 2026-08 & 463 & 24.4\% & \textcolor{normalgreen}{Normal} \\
+674 & \ft{SGP} & SIAMGAS AND PETROCHEMICALS & SET & Energy \& Uti & 2008-06 & 2026-08 & 219 & 84.9\% & \textcolor{normalgreen}{Normal} \\
+675 & \ft{SHANG} & SHANGRI-LA HOTEL PUBLIC CO & SET & Tourism \& Le & 1990-09 & 2026-08 & 432 & 56.0\% & \textcolor{normalgreen}{Normal} \\
+676 & \ft{SHR} & S HOTELS AND RESORTS PUBLI & SET & Tourism \& Le & 2019-11 & 2026-08 & 82 & 82.7\% & \textcolor{normalgreen}{Normal} \\
+677 & \ft{SIAM} & SIAM STEEL INTERNATIONAL P & SET & Home \& Offic & 1992-03 & 2026-08 & 414 & 60.0\% & \textcolor{normalgreen}{Normal} \\
+678 & \ft{SICT} & SILICON CRAFT TECHNOLOGY P & mai & nan & 2020-07 & 2026-08 & 74 & 84.7\% & \textcolor{normalgreen}{Normal} \\
+679 & \ft{SIMAT} & SIMAT TECHNOLOGIES PUBLIC  & mai & Information  & 2007-12 & 2026-08 & 225 & 26.4\% & \textcolor{normalgreen}{Normal} \\
+680 & \ft{SINGER} & SINGER THAILAND PUBLIC COM & SET & Commerce & 1984-06 & 2026-08 & 507 & 58.3\% & \textcolor{normalgreen}{Normal} \\
+681 & \ft{SINO} & Sino Logistics Corporation & SET & Transportati & 2023-09 & 2026-08 & 36 & 72.1\% & \textcolor{normalgreen}{Normal} \\
+682 & \ft{SIRI} & SANSIRI PUBLIC COMPANY LIM & SET & Property Dev & 1996-07 & 2026-08 & 362 & 74.2\% & \textcolor{normalgreen}{Normal} \\
+683 & \ft{SIRIPRT} & Siripinyo Real Estate Inve & SET & Property Fun & 2024-11 & 2026-08 & 22 & 41.8\% & \textcolor{normalgreen}{Normal} \\
+684 & \ft{SIS} & SIS DISTRIBUTION (THAILAND & SET & Information  & 2005-12 & 2026-08 & 249 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+685 & \ft{SISB} & SISB PUBLIC COMPANY LIMITE & SET & Professional & 2018-11 & 2026-08 & 94 & 83.9\% & \textcolor{normalgreen}{Normal} \\
+686 & \ft{SITHAI} & SRITHAI SUPERWARE PUBLIC C & SET & Packaging & 1991-10 & 2026-08 & 419 & 63.1\% & \textcolor{normalgreen}{Normal} \\
+687 & \ft{SJWD} & SCGJWD LOGISTICS PUBLIC CO & SET & Transportati & 2023-02 & 2026-08 & 43 & 95.0\% & \textcolor{normalgreen}{Normal} \\
+688 & \ft{SK} & SIRAKORN PUBLIC COMPANY LI & mai & nan & 2020-10 & 2026-08 & 71 & 25.9\% & \textcolor{normalgreen}{Normal} \\
+689 & \ft{SKE} & SAKOL ENERGY PUBLIC COMPAN & SET & Energy \& Uti & 2017-11 & 2026-08 & 106 & 77.5\% & \textcolor{normalgreen}{Normal} \\
+690 & \ft{SKIN} & SKIN LABORATORY PUBLIC COM & mai & nan & 2025-09 & 2026-08 & 12 & 22.2\% & \textcolor{normalgreen}{Normal} \\
+691 & \ft{SKN} & S.KIJCHAI ENTERPRISE PUBLI & SET & Construction & 2017-09 & 2026-08 & 108 & 78.6\% & \textcolor{normalgreen}{Normal} \\
+692 & \ft{SKR} & SIKARIN PUBLIC COMPANY LIM & SET & Health Care  & 1988-01 & 2026-08 & 464 & 60.2\% & \textcolor{normalgreen}{Normal} \\
+693 & \ft{SKY} & SKY ICT PUBLIC COMPANY LIM & SET & Information  & 2017-07 & 2026-08 & 110 & 79.2\% & \textcolor{normalgreen}{Normal} \\
+694 & \ft{SLP} & SALEE PRINTING PUBLIC COMP & SET & Packaging & 2015-05 & 2026-08 & 136 & 77.9\% & \textcolor{normalgreen}{Normal} \\
+695 & \ft{SMART} & SMART CONCRETE PUBLIC COMP & mai & nan & 2014-10 & 2026-08 & 143 & 77.6\% & \textcolor{normalgreen}{Normal} \\
+696 & \ft{SMD100} & SMD RISE PUBLIC COMPANY LI & mai & nan & 2021-06 & 2026-08 & 63 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+697 & \ft{SMIT} & SAHAMIT MACHINERY PUBLIC C & SET & Steel and Me & 2005-12 & 2026-08 & 249 & 75.3\% & \textcolor{normalgreen}{Normal} \\
+698 & \ft{SMO} & SMOTHONG GROUP PUBLIC COMP & SET & Agribusiness & 2025-11 & 2026-08 & 10 & 64.7\% & \textcolor{normalgreen}{Normal} \\
+699 & \ft{SMPC} & SAHAMITR PRESSURE CONTAINE & SET & Packaging & 1991-12 & 2026-08 & 417 & 60.1\% & \textcolor{normalgreen}{Normal} \\
+700 & \ft{SMT} & STARS MICROELECTRONICS (TH & SET & Electronic C & 2009-09 & 2026-08 & 204 & 77.6\% & \textcolor{normalgreen}{Normal} \\
+701 & \ft{SNC} & SNC FORMER PUBLIC COMPANY  & SET & Industrial M & 2004-10 & 2026-08 & 263 & 81.0\% & \textcolor{normalgreen}{Normal} \\
+702 & \ft{SNNP} & SRINANAPORN MARKETING PUBL & SET & Food \& Bever & 2021-07 & 2026-08 & 62 & 78.5\% & \textcolor{normalgreen}{Normal} \\
+703 & \ft{SNP} & S \& P SYNDICATE PUBLIC COM & SET & Food \& Bever & 1989-05 & 2026-08 & 448 & 60.3\% & \textcolor{normalgreen}{Normal} \\
+704 & \ft{SNPS} & Specialty Natural Products & SET & Personal Pro & 2024-11 & 2026-08 & 22 & 73.3\% & \textcolor{normalgreen}{Normal} \\
+705 & \ft{SO} & SIAMRAJATHANEE PUBLIC COMP & SET & Professional & 2020-10 & 2026-08 & 71 & 78.9\% & \textcolor{normalgreen}{Normal} \\
+706 & \ft{SOLAR} & SOLARTRON PUBLIC COMPANY L & SET & Construction & 2005-03 & 2026-08 & 258 & 76.8\% & \textcolor{normalgreen}{Normal} \\
+707 & \ft{SONIC} & SONIC INTERFREIGHT PUBLIC  & mai & nan & 2018-10 & 2026-08 & 95 & 75.1\% & \textcolor{normalgreen}{Normal} \\
+708 & \ft{SORKON} & S. KHONKAEN FOODS PUBLIC C & SET & Food \& Bever & 1993-04 & 2026-08 & 401 & 62.3\% & \textcolor{normalgreen}{Normal} \\
+709 & \ft{SPA} & SIAM WELLNESS GROUP PUBLIC & SET & Tourism \& Le & 2014-10 & 2026-08 & 143 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+710 & \ft{SPACK} & S. PACK \& PRINT PUBLIC COM & SET & Packaging & 2004-03 & 2026-08 & 270 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+711 & \ft{SPALI} & SUPALAI PUBLIC COMPANY LIM & SET & Property Dev & 1993-11 & 2026-08 & 394 & 68.1\% & \textcolor{normalgreen}{Normal} \\
+712 & \ft{SPC} & SAHA PATHANAPIBUL PUBLIC C & SET & Commerce & 1984-01 & 2026-08 & 512 & 56.8\% & \textcolor{normalgreen}{Normal} \\
+713 & \ft{SPCG} & SPCG PUBLIC COMPANY LIMITE & SET & Energy \& Uti & 2005-12 & 2026-08 & 249 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+714 & \ft{SPG} & THE SIAM PAN GROUP PUBLIC  & SET & Automotive & 1998-01 & 2026-08 & 344 & 65.3\% & \textcolor{normalgreen}{Normal} \\
+715 & \ft{SPI} & SAHA PATHANA INTER-HOLDING & SET & Commerce & 1984-01 & 2026-08 & 512 & 55.7\% & \textcolor{normalgreen}{Normal} \\
+716 & \ft{SPRC} & STAR PETROLEUM REFINING PU & SET & Energy \& Uti & 2015-12 & 2026-08 & 129 & 89.3\% & \textcolor{normalgreen}{Normal} \\
+717 & \ft{SPREME} & Supreme Distribution Publi & SET & Information  & 2024-05 & 2026-08 & 28 & 76.0\% & \textcolor{normalgreen}{Normal} \\
+718 & \ft{SPRIME} & S PRIME GROWTH LEASEHOLD R & SET & Property Fun & 2019-01 & 2026-08 & 92 & 65.7\% & \textcolor{normalgreen}{Normal} \\
+719 & \ft{SPTX} & SPT X PUBLIC COMPANY LIMIT & mai & nan & 2026-01 & 2026-08 & 8 & 67.1\% & \textcolor{normalgreen}{Normal} \\
+720 & \ft{SPVI} & S P V I PUBLIC COMPANY LIM & mai & nan & 2013-12 & 2026-08 & 153 & 72.3\% & \textcolor{normalgreen}{Normal} \\
+721 & \ft{SQ} & SAHAKOL EQUIPMENT PUBLIC C & SET & Construction & 2016-10 & 2026-08 & 119 & 26.2\% & \textcolor{alertred}{\textbf{Distress}} \\
+722 & \ft{SR} & SIAMRAJ PUBLIC COMPANY LIM & mai & nan & 2015-11 & 2026-08 & 130 & 77.4\% & \textcolor{normalgreen}{Normal} \\
+723 & \ft{SRICHA} & SRIRACHA CONSTRUCTION PUBL & SET & Construction & 2012-07 & 2026-08 & 170 & 78.1\% & \textcolor{normalgreen}{Normal} \\
+724 & \ft{SRIPANWA} & SRI PANWA HOSPITALITY REAL & SET & Property Fun & 2016-12 & 2026-08 & 117 & 68.9\% & \textcolor{normalgreen}{Normal} \\
+725 & \ft{SRS} & SIRISOFT PUBLIC COMPANY LI & mai & nan & 2023-10 & 2026-08 & 35 & 71.0\% & \textcolor{normalgreen}{Normal} \\
+726 & \ft{SSF} & SURAPON FOODS PUBLIC COMPA & SET & Food \& Bever & 1989-09 & 2026-08 & 444 & 60.0\% & \textcolor{normalgreen}{Normal} \\
+727 & \ft{SSP} & SERMSANG POWER CORPORATION & SET & Energy \& Uti & 2017-09 & 2026-08 & 108 & 80.4\% & \textcolor{normalgreen}{Normal} \\
+728 & \ft{SSPF} & SALA @ SATHORN PROPERTY FU & SET & Property Fun & 2009-08 & 2026-08 & 205 & 41.0\% & \textcolor{normalgreen}{Normal} \\
+729 & \ft{SSSC} & SIAM STEEL SERVICE CENTER  & SET & Steel and Me & 1996-01 & 2026-08 & 368 & 69.8\% & \textcolor{normalgreen}{Normal} \\
+730 & \ft{SST} & SUB SRI THAI PUBLIC COMPAN & SET & Food \& Bever & 1990-01 & 2026-08 & 440 & 56.8\% & \textcolor{normalgreen}{Normal} \\
+731 & \ft{SSTRT} & SUB SRI THAI REAL ESTATE I & SET & Property Fun & 2017-12 & 2026-08 & 105 & 67.7\% & \textcolor{normalgreen}{Normal} \\
+732 & \ft{STA} & SRI TRANG AGRO-INDUSTRY PU & SET & Agribusiness & 1991-08 & 2026-08 & 421 & 64.8\% & \textcolor{normalgreen}{Normal} \\
+733 & \ft{STANLY} & THAI STANLEY ELECTRIC PUBL & SET & Automotive & 1991-05 & 2026-08 & 424 & 52.4\% & \textcolor{normalgreen}{Normal} \\
+734 & \ft{STARK} & Stark Corporation PCL & SET & Industrial M & 2019-07 & 2024-09 & 63 & 25.8\% & \textcolor{alertred}{\textbf{Distress}} \\
+735 & \ft{STARM} & STAR MONEY PUBLIC COMPANY  & SET & Finance \& Se & 2022-12 & 2026-08 & 45 & 69.6\% & \textcolor{normalgreen}{Normal} \\
+736 & \ft{STC} & STC CONCRETE PRODUCT PUBLI & mai & nan & 2019-11 & 2026-08 & 82 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+737 & \ft{STECH} & SIAM TECHNIC CONCRETE PUBL & SET & Construction & 2021-07 & 2026-08 & 62 & 76.9\% & \textcolor{normalgreen}{Normal} \\
+738 & \ft{STECON} & STECON GROUP PUBLIC COMPAN & SET & Construction & 2024-10 & 2026-08 & 23 & 79.0\% & \textcolor{normalgreen}{Normal} \\
+739 & \ft{STELLA} & STELLA X PUBLIC COMPANY LI & SET & Property Dev & 2025-01 & 2026-08 & 20 & 74.0\% & \textcolor{normalgreen}{Normal} \\
+740 & \ft{STGT} & SRI TRANG GLOVES (THAILAND & SET & Personal Pro & 2020-07 & 2026-08 & 74 & 95.1\% & \textcolor{normalgreen}{Normal} \\
+741 & \ft{STI} & STONEHENGE INTER PUBLIC CO & SET & Construction & 2018-12 & 2026-08 & 93 & 75.9\% & \textcolor{normalgreen}{Normal} \\
+742 & \ft{STOWER} & SKY TOWER PUBLIC COMPANY L & mai & Industrial M & 2021-07 & 2026-08 & 62 & 75.7\% & \textcolor{normalgreen}{Normal} \\
+743 & \ft{STP} & SAHATHAI PRINTING \& PACKAG & mai & nan & 2022-06 & 2026-08 & 51 & 78.6\% & \textcolor{normalgreen}{Normal} \\
+744 & \ft{STPI} & STP\&I PUBLIC COMPANY LIMIT & SET & Construction & 1996-05 & 2026-08 & 364 & 66.4\% & \textcolor{normalgreen}{Normal} \\
+745 & \ft{STX} & Stone One Public Company L & mai & nan & 2024-04 & 2026-08 & 29 & 24.8\% & \textcolor{normalgreen}{Normal} \\
+746 & \ft{SUC} & SAHA-UNION PUBLIC COMPANY  & SET & Fashion & 1990-01 & 2026-08 & 440 & 61.0\% & \textcolor{normalgreen}{Normal} \\
+747 & \ft{SUN} & SUNSWEET PUBLIC COMPANY LI & SET & Food \& Bever & 2017-12 & 2026-08 & 105 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+748 & \ft{SUPER} & SUPER ENERGY CORPORATION P & SET & Energy \& Uti & 2005-12 & 2026-08 & 249 & 83.7\% & \textcolor{normalgreen}{Normal} \\
+749 & \ft{SUPEREIF} & SUPER ENERGY POWER PLANT I & SET & Energy \& Uti & 2019-08 & 2026-08 & 85 & 64.2\% & \textcolor{normalgreen}{Normal} \\
+750 & \ft{SUSCO} & SUSCO PUBLIC COMPANY LIMIT & SET & Energy \& Uti & 1990-08 & 2026-08 & 433 & 61.5\% & \textcolor{normalgreen}{Normal} \\
+751 & \ft{SUTHA} & GOLDEN LIME PUBLIC COMPANY & SET & Petrochemica & 2014-04 & 2026-08 & 149 & 84.1\% & \textcolor{normalgreen}{Normal} \\
+752 & \ft{SVI} & Svi PCL & SET & Electronic C & 1989-09 & 2026-05 & 441 & 25.1\% & \textcolor{normalgreen}{Normal} \\
+753 & \ft{SVOA} & SVOA PUBLIC COMPANY LIMITE & SET & Information  & 1993-09 & 2026-08 & 396 & 26.3\% & \textcolor{normalgreen}{Normal} \\
+754 & \ft{SVR} & SIVAROM REAL ESTATE PUBLIC & mai & Property Dev & 2023-02 & 2026-08 & 43 & 76.4\% & \textcolor{normalgreen}{Normal} \\
+755 & \ft{SVT} & SUN VENDING TECHNOLOGY PUB & SET & Commerce & 2021-10 & 2026-08 & 59 & 72.3\% & \textcolor{normalgreen}{Normal} \\
+756 & \ft{SWC} & SHERWOOD CORPORATION (THAI & mai & Petrochemica & 2005-12 & 2026-08 & 249 & 68.6\% & \textcolor{normalgreen}{Normal} \\
+757 & \ft{SYMC} & SYMPHONY COMMUNICATION PUB & SET & Information  & 2010-11 & 2026-08 & 190 & 77.6\% & \textcolor{normalgreen}{Normal} \\
+758 & \ft{SYNEX} & SYNNEX (THAILAND) PUBLIC C & SET & Information  & 2008-06 & 2026-08 & 219 & 84.8\% & \textcolor{normalgreen}{Normal} \\
+759 & \ft{SYNTEC} & SYNTEC CONSTRUCTION PUBLIC & SET & Construction & 1993-07 & 2026-08 & 398 & 64.2\% & \textcolor{normalgreen}{Normal} \\
+760 & \ft{TACC} & T.A.C. CONSUMER PUBLIC COM & mai & nan & 2015-12 & 2026-08 & 129 & 78.7\% & \textcolor{normalgreen}{Normal} \\
+761 & \ft{TAE} & THAI AGRO ENERGY PUBLIC CO & SET & Energy \& Uti & 2014-06 & 2026-08 & 147 & 79.0\% & \textcolor{normalgreen}{Normal} \\
+762 & \ft{TAKUNI} & TAKUNI GROUP PUBLIC COMPAN & mai & Energy \& Uti & 2014-08 & 2026-08 & 145 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+763 & \ft{TAN} & Tanachira Retail Corporati & SET & Commerce & 2023-10 & 2026-08 & 35 & 75.6\% & \textcolor{normalgreen}{Normal} \\
+764 & \ft{TAPAC} & TAPACO PUBLIC COMPANY LIMI & mai & nan & 2005-12 & 2024-05 & 222 & 79.7\% & \textcolor{normalgreen}{Normal} \\
+765 & \ft{TASCO} & TIPCO ASPHALT PUBLIC COMPA & SET & Construction & 1991-03 & 2026-08 & 426 & 64.1\% & \textcolor{normalgreen}{Normal} \\
+766 & \ft{TATG} & THAI AUTO TOOLS AND DIE PU & mai & nan & 2024-10 & 2026-08 & 23 & 24.3\% & \textcolor{normalgreen}{Normal} \\
+767 & \ft{TBN} & TBN Corporation Public Com & mai & nan & 2023-06 & 2026-08 & 39 & 72.2\% & \textcolor{normalgreen}{Normal} \\
+768 & \ft{TBSP} & TBSP PUBLIC COMPANY LIMITE & SET & Media \& Publ & 1996-03 & 2026-08 & 366 & 63.1\% & \textcolor{normalgreen}{Normal} \\
+769 & \ft{TC} & TROPICAL CANNING (THAILAND & SET & Food \& Bever & 1990-01 & 2026-08 & 440 & 59.9\% & \textcolor{normalgreen}{Normal} \\
+770 & \ft{TCAP} & THANACHART CAPITAL PUBLIC  & SET & Banking & 1984-01 & 2026-08 & 512 & 46.6\% & \textcolor{normalgreen}{Normal} \\
+771 & \ft{TCC} & THAI CAPITAL CORPORATION P & SET & Energy \& Uti & 1991-04 & 2026-08 & 425 & 60.9\% & \textcolor{normalgreen}{Normal} \\
+772 & \ft{TCJ} & T.C.J. ASIA PUBLIC COMPANY & SET & Industrial M & 1995-11 & 2026-08 & 370 & 67.4\% & \textcolor{normalgreen}{Normal} \\
+773 & \ft{TCMC} & TCM CORPORATION PUBLIC COM & SET & Home \& Offic & 1984-03 & 2026-08 & 510 & 53.9\% & \textcolor{normalgreen}{Normal} \\
+774 & \ft{TCOAT} & THAI COATING INDUSTRIAL PU & SET & Packaging & 1994-06 & 2026-08 & 387 & 64.3\% & \textcolor{normalgreen}{Normal} \\
+775 & \ft{TEAM} & TEAM PRECISION PUBLIC COMP & SET & Electronic C & 2001-11 & 2026-08 & 298 & 74.7\% & \textcolor{normalgreen}{Normal} \\
+776 & \ft{TEAMG} & TEAM CONSULTING ENGINEERIN & SET & Construction & 2018-07 & 2026-08 & 98 & 77.2\% & \textcolor{normalgreen}{Normal} \\
+777 & \ft{TEGH} & Thai Eastern Group Holding & SET & Agribusiness & 2022-09 & 2026-08 & 48 & 77.2\% & \textcolor{normalgreen}{Normal} \\
+778 & \ft{TEKA} & TEKA CONSTRUCTION PUBLIC C & SET & Construction & 2022-06 & 2026-08 & 51 & 77.0\% & \textcolor{normalgreen}{Normal} \\
+779 & \ft{TERA} & Terabyte Plus Public Compa & mai & nan & 2024-04 & 2026-08 & 29 & 24.8\% & \textcolor{normalgreen}{Normal} \\
+780 & \ft{TFFIF} & THAILAND FUTURE FUND & SET & Transportati & 2018-10 & 2026-08 & 95 & 53.7\% & \textcolor{normalgreen}{Normal} \\
+781 & \ft{TFG} & THAIFOODS GROUP PUBLIC COM & SET & Food \& Bever & 2015-10 & 2026-08 & 131 & 86.9\% & \textcolor{normalgreen}{Normal} \\
+782 & \ft{TFI} & THAI FUTURE INCORPORATION  & SET & Packaging & 1989-12 & 2026-08 & 441 & 58.2\% & \textcolor{normalgreen}{Normal} \\
+783 & \ft{TFM} & THAI UNION FEEDMILL PUBLIC & SET & Agribusiness & 2021-10 & 2026-08 & 59 & 80.9\% & \textcolor{normalgreen}{Normal} \\
+784 & \ft{TFMAMA} & THAI PRESIDENT FOODS PUBLI & SET & Food \& Bever & 2017-10 & 2026-08 & 107 & 81.7\% & \textcolor{normalgreen}{Normal} \\
+785 & \ft{TGE} & THACHANG GREEN ENERGY PUBL & SET & Energy \& Uti & 2022-08 & 2026-08 & 49 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+786 & \ft{TGH} & THAI GROUP HOLDINGS PUBLIC & SET & Insurance & 2019-07 & 2026-08 & 86 & 56.9\% & \textcolor{normalgreen}{Normal} \\
+787 & \ft{TGPRO} & THAI-GERMAN PRODUCTS PUBLI & SET & Steel and Me & 1995-01 & 2026-08 & 380 & 63.2\% & \textcolor{normalgreen}{Normal} \\
+788 & \ft{TH} & TONG HUA HOLDING PUBLIC CO & SET & Finance \& Se & 1991-05 & 2026-08 & 424 & 53.4\% & \textcolor{normalgreen}{Normal} \\
+789 & \ft{THAI} & THAI AIRWAYS INTERNATIONAL & SET & Transportati & 1992-07 & 2026-08 & 410 & 72.6\% & \textcolor{alertred}{\textbf{Distress}} \\
+790 & \ft{THANA} & THANASIRI GROUP PUBLIC COM & mai & Commerce & 2009-12 & 2026-08 & 201 & 81.1\% & \textcolor{normalgreen}{Normal} \\
+791 & \ft{THANI} & RATCHTHANI LEASING PUBLIC  & SET & Finance \& Se & 2002-12 & 2026-08 & 285 & 79.2\% & \textcolor{normalgreen}{Normal} \\
+792 & \ft{THCOM} & THAICOM PUBLIC COMPANY LIM & SET & Information  & 1994-01 & 2026-08 & 392 & 70.1\% & \textcolor{normalgreen}{Normal} \\
+793 & \ft{THE} & THE STEEL PUBLIC COMPANY L & SET & Steel and Me & 2007-08 & 2026-08 & 229 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+794 & \ft{THG} & THONBURI HEALTHCARE GROUP  & SET & Health Care  & 2017-12 & 2026-08 & 105 & 86.1\% & \textcolor{normalgreen}{Normal} \\
+795 & \ft{THIP} & THANTAWAN INDUSTRY PUBLIC  & SET & Packaging & 1994-12 & 2026-08 & 381 & 63.2\% & \textcolor{normalgreen}{Normal} \\
+796 & \ft{THMUI} & THAI MUI CORPORATION PUBLI & mai & nan & 2017-11 & 2026-08 & 106 & 77.1\% & \textcolor{normalgreen}{Normal} \\
+797 & \ft{THRE} & THAI REINSURANCE PUBLIC CO & SET & Insurance & 1993-02 & 2026-08 & 403 & 49.0\% & \textcolor{normalgreen}{Normal} \\
+798 & \ft{THREL} & THAIRE LIFE ASSURANCE PUBL & SET & Insurance & 2013-10 & 2026-08 & 155 & 58.8\% & \textcolor{normalgreen}{Normal} \\
+799 & \ft{TIDLOR} & TIDLOR HOLDINGS PUBLIC COM & SET & Finance \& Se & 2021-05 & 2026-08 & 64 & 36.1\% & \textcolor{normalgreen}{Normal} \\
+800 & \ft{TIF1} & THAI INDUSTRIAL FUND 1 & SET & Property Fun & 2005-12 & 2026-08 & 249 & 51.3\% & \textcolor{normalgreen}{Normal} \\
+801 & \ft{TIGER} & THAI ENGER HOLDING PUBLIC  & mai & nan & 2018-10 & 2026-08 & 95 & 26.1\% & \textcolor{normalgreen}{Normal} \\
+802 & \ft{TIPCO} & TIPCO FOODS PUBLIC COMPANY & SET & Food \& Bever & 1989-09 & 2026-08 & 444 & 60.1\% & \textcolor{normalgreen}{Normal} \\
+803 & \ft{TIPH} & DHIPAYA GROUP HOLDINGS PUB & SET & Insurance & 2021-09 & 2026-08 & 60 & 54.3\% & \textcolor{normalgreen}{Normal} \\
+804 & \ft{TISCO} & TISCO FINANCIAL GROUP PUBL & SET & Banking & 1984-01 & 2026-08 & 512 & 50.7\% & \textcolor{normalgreen}{Normal} \\
+805 & \ft{TITLE} & RHOM BHO PROPERTY PUBLIC C & SET & Property Dev & 2017-11 & 2026-08 & 106 & 78.0\% & \textcolor{normalgreen}{Normal} \\
+806 & \ft{TK} & THITIKORN PUBLIC COMPANY L & SET & Finance \& Se & 2003-10 & 2026-08 & 275 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+807 & \ft{TKC} & TURNKEY COMMUNICATION SERV & SET & Information  & 2022-01 & 2026-08 & 56 & 77.4\% & \textcolor{normalgreen}{Normal} \\
+808 & \ft{TKN} & TAOKAENOI FOOD \& MARKETING & SET & Food \& Bever & 2015-12 & 2026-08 & 129 & 90.5\% & \textcolor{normalgreen}{Normal} \\
+809 & \ft{TKS} & T.K.S. TECHNOLOGIES PUBLIC & SET & Media \& Publ & 2003-11 & 2026-08 & 274 & 80.6\% & \textcolor{normalgreen}{Normal} \\
+810 & \ft{TKT} & T.KRUNGTHAI INDUSTRIES PUB & SET & Automotive & 2005-12 & 2026-08 & 249 & 79.7\% & \textcolor{normalgreen}{Normal} \\
+811 & \ft{TL} & TECHLEAD NEXT PUBLIC COMPA & SET & Information  & 2025-06 & 2026-08 & 15 & 75.1\% & \textcolor{normalgreen}{Normal} \\
+812 & \ft{TLHPF} & THAILAND HOSPITALITY PROPE & SET & Property Fun & 2015-11 & 2026-08 & 130 & 51.9\% & \textcolor{normalgreen}{Normal} \\
+813 & \ft{TLI} & THAI LIFE INSURANCE PUBLIC & SET & Insurance & 2022-07 & 2026-08 & 50 & 55.9\% & \textcolor{normalgreen}{Normal} \\
+814 & \ft{TM} & TECHNO MEDICAL PUBLIC COMP & mai & nan & 2016-08 & 2026-08 & 121 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+815 & \ft{TMAN} & T.Man Pharmaceutical Publi & SET & Personal Pro & 2024-10 & 2026-08 & 23 & 76.4\% & \textcolor{normalgreen}{Normal} \\
+816 & \ft{TMC} & T.M.C. INDUSTRIAL PUBLIC C & mai & nan & 2012-10 & 2026-08 & 167 & 76.9\% & \textcolor{normalgreen}{Normal} \\
+817 & \ft{TMD} & THAI METAL DRUM MANUFACTUR & SET & Packaging & 1989-11 & 2026-08 & 442 & 55.8\% & \textcolor{normalgreen}{Normal} \\
+818 & \ft{TMI} & TEERA-MONGKOL INDUSTRY PUB & mai & Home \& Offic & 2010-05 & 2026-08 & 196 & 76.3\% & \textcolor{normalgreen}{Normal} \\
+819 & \ft{TMILL} & T S FLOUR MILL PUBLIC COMP & mai & nan & 2012-11 & 2026-08 & 166 & 86.7\% & \textcolor{normalgreen}{Normal} \\
+820 & \ft{TMT} & TMT STEEL PUBLIC COMPANY L & SET & Steel and Me & 2005-12 & 2026-08 & 249 & 82.4\% & \textcolor{normalgreen}{Normal} \\
+821 & \ft{TMW} & THAI MITSUWA PUBLIC COMPAN & mai & nan & 2003-10 & 2026-08 & 275 & 26.5\% & \textcolor{normalgreen}{Normal} \\
+822 & \ft{TNDT} & THAI NONDESTRUCTIVE TESTIN & mai & nan & 2007-09 & 2026-08 & 228 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+823 & \ft{TNH} & THAI NAKARIN HOSPITAL PUBL & mai & nan & 2005-12 & 2026-08 & 249 & 65.9\% & \textcolor{normalgreen}{Normal} \\
+824 & \ft{TNITY} & TRINITY WATTHANA PUBLIC CO & SET & Finance \& Se & 2002-12 & 2026-08 & 285 & 74.0\% & \textcolor{normalgreen}{Normal} \\
+825 & \ft{TNL} & THANULUX PUBLIC COMPANY LI & SET & Finance \& Se & 1990-01 & 2026-08 & 440 & 59.9\% & \textcolor{normalgreen}{Normal} \\
+826 & \ft{TNP} & THANAPIRIYA PUBLIC COMPANY & mai & nan & 2015-11 & 2026-08 & 130 & 77.5\% & \textcolor{normalgreen}{Normal} \\
+827 & \ft{TNPC} & THAI NAM PLASTIC PUBLIC CO & SET & Automotive & 1992-02 & 2026-08 & 415 & 60.7\% & \textcolor{normalgreen}{Normal} \\
+828 & \ft{TNPF} & TRINITY FREEHOLD AND LEASE & SET & Property Fun & 2011-03 & 2026-08 & 186 & 48.3\% & \textcolor{normalgreen}{Normal} \\
+829 & \ft{TNR} & THAI NIPPON RUBBER INDUSTR & SET & Personal Pro & 2016-11 & 2026-08 & 118 & 78.7\% & \textcolor{normalgreen}{Normal} \\
+830 & \ft{TOA} & TOA PAINT (THAILAND) PUBLI & SET & Construction & 2017-10 & 2026-08 & 107 & 92.9\% & \textcolor{normalgreen}{Normal} \\
+831 & \ft{TOG} & THAI OPTICAL GROUP PUBLIC  & SET & Personal Pro & 2006-05 & 2026-08 & 244 & 83.4\% & \textcolor{normalgreen}{Normal} \\
+832 & \ft{TOP} & THAI OIL PUBLIC COMPANY LI & SET & Energy \& Uti & 2004-10 & 2026-08 & 263 & 93.2\% & \textcolor{normalgreen}{Normal} \\
+833 & \ft{TOPP} & THAI O.P.P. PUBLIC COMPANY & SET & Packaging & 1991-05 & 2026-08 & 424 & 52.5\% & \textcolor{normalgreen}{Normal} \\
+834 & \ft{TPA} & THAI POLY ACRYLIC PUBLIC C & SET & Petrochemica & 1994-12 & 2026-08 & 381 & 66.0\% & \textcolor{normalgreen}{Normal} \\
+835 & \ft{TPAC} & THAI PLASPAC PUBLIC COMPAN & SET & Packaging & 2005-12 & 2026-08 & 249 & 79.8\% & \textcolor{normalgreen}{Normal} \\
+836 & \ft{TPBI} & TPBI PUBLIC COMPANY LIMITE & SET & Packaging & 2016-03 & 2026-08 & 126 & 80.4\% & \textcolor{normalgreen}{Normal} \\
+837 & \ft{TPCH} & TPC POWER HOLDING PUBLIC C & mai & Energy \& Uti & 2015-01 & 2026-08 & 140 & 78.4\% & \textcolor{alertred}{\textbf{Distress}} \\
+838 & \ft{TPCS} & TPCS PUBLIC COMPANY LIMITE & SET & Industrial M & 1990-01 & 2026-08 & 440 & 57.6\% & \textcolor{normalgreen}{Normal} \\
+839 & \ft{TPIPL} & TPI POLENE PUBLIC COMPANY  & SET & Construction & 1990-11 & 2026-08 & 430 & 64.3\% & \textcolor{normalgreen}{Normal} \\
+840 & \ft{TPIPP} & TPI POLENE POWER PUBLIC CO & SET & Energy \& Uti & 2017-04 & 2026-08 & 113 & 90.5\% & \textcolor{normalgreen}{Normal} \\
+841 & \ft{TPL} & Thai Parcels Public Compan & mai & nan & 2023-06 & 2026-08 & 39 & 73.4\% & \textcolor{normalgreen}{Normal} \\
+842 & \ft{TPLAS} & THAI PLASTIC INDUSTRIAL (1 & mai & nan & 2018-09 & 2026-08 & 96 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+843 & \ft{TPOLY} & THAI POLYCONS PUBLIC COMPA & SET & Construction & 2009-03 & 2026-08 & 210 & 78.7\% & \textcolor{alertred}{\textbf{Distress}} \\
+844 & \ft{TPP} & THAI PACKAGING \& PRINTING  & SET & Packaging & 1990-11 & 2026-08 & 430 & 61.3\% & \textcolor{normalgreen}{Normal} \\
+845 & \ft{TPRIME} & THAILAND PRIME PROPERTY FR & SET & Property Fun & 2016-10 & 2026-08 & 119 & 65.7\% & \textcolor{normalgreen}{Normal} \\
+846 & \ft{TPS} & THE PRACTICAL SOLUTION PUB & mai & nan & 2019-11 & 2026-08 & 82 & 78.4\% & \textcolor{normalgreen}{Normal} \\
+847 & \ft{TQM} & TQM ALPHA PUBLIC COMPANY L & SET & Insurance & 2018-12 & 2026-08 & 93 & 89.4\% & \textcolor{normalgreen}{Normal} \\
+848 & \ft{TQR} & TQR PUBLIC COMPANY LIMITED & mai & nan & 2021-02 & 2026-08 & 67 & 73.9\% & \textcolor{normalgreen}{Normal} \\
+849 & \ft{TR} & THAI RAYON PUBLIC COMPANY  & SET & Fashion & 1990-04 & 2025-09 & 426 & 25.5\% & \textcolor{normalgreen}{Normal} \\
+850 & \ft{TRC} & TRC CONSTRUCTION PUBLIC CO & SET & Construction & 2005-12 & 2026-08 & 249 & 77.0\% & \textcolor{normalgreen}{Normal} \\
+851 & \ft{TRITN} & TRITON HOLDING PUBLIC COMP & SET & Construction & 1995-02 & 2026-08 & 379 & 64.0\% & \textcolor{normalgreen}{Normal} \\
+852 & \ft{TRP} & Aesthetic Connect Public C & mai & nan & 2023-10 & 2026-08 & 35 & 75.6\% & \textcolor{normalgreen}{Normal} \\
+853 & \ft{TRT} & TIRATHAI PUBLIC COMPANY LI & mai & Electronic C & 2006-05 & 2026-08 & 244 & 79.1\% & \textcolor{normalgreen}{Normal} \\
+854 & \ft{TRU} & THAI RUNG UNION CAR PUBLIC & SET & Automotive & 1994-11 & 2026-08 & 382 & 66.1\% & \textcolor{normalgreen}{Normal} \\
+855 & \ft{TRUBB} & THAI RUBBER LATEX GROUP PU & SET & Agribusiness & 1991-07 & 2026-08 & 422 & 61.7\% & \textcolor{normalgreen}{Normal} \\
+856 & \ft{TRUE} & TRUE CORPORATION PUBLIC CO & SET & Information  & 1993-12 & 2026-08 & 393 & 32.1\% & \textcolor{normalgreen}{Normal} \\
+857 & \ft{TRV} & T.R.V. RUBBER PRODUCTS PUB & mai & Transportati & 2021-12 & 2026-08 & 57 & 76.7\% & \textcolor{normalgreen}{Normal} \\
+858 & \ft{TSC} & THAI STEEL CABLE PUBLIC CO & SET & Automotive & 2005-12 & 2026-08 & 249 & 81.2\% & \textcolor{normalgreen}{Normal} \\
+859 & \ft{TSE} & THAI SOLAR ENERGY PUBLIC C & SET & Energy \& Uti & 2014-10 & 2026-08 & 143 & 75.7\% & \textcolor{normalgreen}{Normal} \\
+860 & \ft{TSI} & THE THAI SETAKIJ INSURANCE & SET & Insurance & 1991-03 & 2026-08 & 426 & 44.6\% & \textcolor{normalgreen}{Normal} \\
+861 & \ft{TSR} & TSR LIVING SOLUTION PUBLIC & SET & Home \& Offic & 2014-06 & 2026-05 & 144 & 26.0\% & \textcolor{normalgreen}{Normal} \\
+862 & \ft{TSTE} & TSTE PUBLIC COMPANY LIMITE & SET & Transportati & 1990-07 & 2026-08 & 434 & 59.8\% & \textcolor{normalgreen}{Normal} \\
+863 & \ft{TSTH} & TATA STEEL (THAILAND) PUBL & SET & Steel and Me & 2002-12 & 2026-08 & 285 & 79.6\% & \textcolor{normalgreen}{Normal} \\
+864 & \ft{TTA} & THORESEN THAI AGENCIES PUB & SET & Transportati & 1995-09 & 2026-08 & 372 & 68.8\% & \textcolor{normalgreen}{Normal} \\
+865 & \ft{TTB} & TMBTHANACHART BANK PUBLIC  & SET & Banking & 2021-05 & 2026-08 & 64 & 80.0\% & \textcolor{normalgreen}{Normal} \\
+866 & \ft{TTCL} & TTCL PUBLIC COMPANY LIMITE & SET & Construction & 2009-06 & 2026-05 & 204 & 26.5\% & \textcolor{alertred}{\textbf{Distress}} \\
+867 & \ft{TTI} & THAI TEXTILE INDUSTRY PUBL & SET & Fashion & 1990-01 & 2026-08 & 440 & 60.4\% & \textcolor{normalgreen}{Normal} \\
+868 & \ft{TTLPF} & TALAAD THAI LEASEHOLD PROP & SET & Property Fun & 2010-11 & 2026-08 & 190 & 42.5\% & \textcolor{normalgreen}{Normal} \\
+869 & \ft{TTT} & TORAY TEXTILES (THAILAND)  & SET & Fashion & 2019-07 & 2026-08 & 86 & 75.9\% & \textcolor{normalgreen}{Normal} \\
+870 & \ft{TTW} & TTW PUBLIC COMPANY LIMITED & SET & Energy \& Uti & 2008-05 & 2026-08 & 220 & 85.8\% & \textcolor{normalgreen}{Normal} \\
+871 & \ft{TU} & THAI UNION GROUP PUBLIC CO & SET & Food \& Bever & 1994-11 & 2026-08 & 382 & 74.2\% & \textcolor{normalgreen}{Normal} \\
+872 & \ft{TU-PF} & T.U. DOME RESIDENTIAL COMP & SET & Property Fun & 2006-12 & 2026-08 & 237 & 42.3\% & \textcolor{normalgreen}{Normal} \\
+873 & \ft{TURBO} & Ngernturbo Public Company  & SET & Finance \& Se & 2025-09 & 2026-08 & 12 & 55.8\% & \textcolor{normalgreen}{Normal} \\
+874 & \ft{TURTLE} & SUPER TURTLE PUBLIC COMPAN & mai & nan & 2010-11 & 2026-08 & 190 & 72.3\% & \textcolor{normalgreen}{Normal} \\
+875 & \ft{TVDH} & TVD HOLDINGS PUBLIC COMPAN & mai & nan & 2022-07 & 2026-08 & 50 & 91.3\% & \textcolor{normalgreen}{Normal} \\
+876 & \ft{TVH} & THAIVIVAT HOLDINGS PUBLIC  & SET & Insurance & 2023-07 & 2026-08 & 38 & 53.5\% & \textcolor{normalgreen}{Normal} \\
+877 & \ft{TVO} & THAI VEGETABLE OIL PUBLIC  & SET & Food \& Bever & 1990-11 & 2026-08 & 430 & 65.5\% & \textcolor{normalgreen}{Normal} \\
+878 & \ft{TVT} & TV THUNDER PUBLIC COMPANY  & mai & nan & 2015-05 & 2026-08 & 136 & 76.2\% & \textcolor{normalgreen}{Normal} \\
+879 & \ft{TWP} & THAI WIRE PRODUCTS PUBLIC  & SET & Steel and Me & 1989-10 & 2026-08 & 443 & 57.6\% & \textcolor{normalgreen}{Normal} \\
+880 & \ft{TWPC} & THAI WAH PUBLIC COMPANY LI & SET & Food \& Bever & 2015-10 & 2026-08 & 131 & 84.6\% & \textcolor{normalgreen}{Normal} \\
+881 & \ft{TWZ} & TWZ CORPORATION PUBLIC COM & SET & Information  & 2005-11 & 2026-08 & 250 & 77.2\% & \textcolor{normalgreen}{Normal} \\
+882 & \ft{TYCN} & TYCOONS WORLDWIDE GROUP (T & SET & Steel and Me & 2003-12 & 2026-08 & 273 & 77.2\% & \textcolor{normalgreen}{Normal} \\
+883 & \ft{UAC} & UAC GLOBAL PUBLIC COMPANY  & SET & Petrochemica & 2010-10 & 2026-08 & 191 & 84.3\% & \textcolor{normalgreen}{Normal} \\
+884 & \ft{UBA} & Utility Business Alliance  & mai & nan & 2022-12 & 2026-08 & 45 & 77.7\% & \textcolor{normalgreen}{Normal} \\
+885 & \ft{UBE} & UBON BIO ETHANOL PUBLIC CO & SET & Energy \& Uti & 2021-09 & 2026-08 & 60 & 83.8\% & \textcolor{normalgreen}{Normal} \\
+886 & \ft{UBIS} & UBIS (ASIA) PUBLIC COMPANY & mai & Industrial M & 2007-05 & 2026-08 & 232 & 78.0\% & \textcolor{normalgreen}{Normal} \\
+887 & \ft{UEC} & UNIMIT ENGINEERING PUBLIC  & mai & nan & 2005-12 & 2026-08 & 249 & 66.1\% & \textcolor{normalgreen}{Normal} \\
+888 & \ft{UKEM} & UNION PETROCHEMICAL PUBLIC & mai & nan & 2006-11 & 2026-08 & 238 & 79.4\% & \textcolor{normalgreen}{Normal} \\
+889 & \ft{UMI} & THE UNION MOSAIC INDUSTRY  & SET & Construction & 1989-10 & 2026-08 & 443 & 59.0\% & \textcolor{normalgreen}{Normal} \\
+890 & \ft{UMS} & UNIQUE MINING SERVICES PUB & mai & nan & 2004-07 & 2026-08 & 266 & 75.2\% & \textcolor{normalgreen}{Normal} \\
+891 & \ft{UNIQ} & UNIQUE ENGINEERING AND CON & SET & Construction & 2007-03 & 2026-08 & 234 & 79.4\% & \textcolor{normalgreen}{Normal} \\
+892 & \ft{UNIX} & Unique Plastic Industry Pu & SET & Packaging & 2026-04 & 2026-08 & 5 & 52.7\% & \textcolor{normalgreen}{Normal} \\
+893 & \ft{UP} & UNION PLASTIC PUBLIC COMPA & SET & Petrochemica & 1984-01 & 2026-08 & 512 & 50.1\% & \textcolor{normalgreen}{Normal} \\
+894 & \ft{UPF} & UNION PIONEER PUBLIC COMPA & SET & Fashion & 1990-01 & 2026-08 & 440 & 58.2\% & \textcolor{normalgreen}{Normal} \\
+895 & \ft{UPOIC} & UNITED PALM OIL INDUSTRY P & SET & Agribusiness & 1991-04 & 2026-08 & 425 & 56.2\% & \textcolor{normalgreen}{Normal} \\
+896 & \ft{UREKA} & EUREKA DESIGN PUBLIC COMPA & mai & nan & 2013-03 & 2026-08 & 162 & 77.9\% & \textcolor{normalgreen}{Normal} \\
+897 & \ft{UTP} & UNITED PAPER PUBLIC COMPAN & SET & Paper \& Prin & 2005-12 & 2026-08 & 249 & 75.0\% & \textcolor{normalgreen}{Normal} \\
+898 & \ft{UV} & UNIVENTURES PUBLIC COMPANY & SET & Property Dev & 1988-12 & 2026-08 & 453 & 59.2\% & \textcolor{normalgreen}{Normal} \\
+899 & \ft{UVAN} & UNIVANICH PALM OIL PUBLIC  & SET & Agribusiness & 2003-11 & 2026-08 & 274 & 70.0\% & \textcolor{normalgreen}{Normal} \\
+900 & \ft{VARO} & VAROPAKORN PUBLIC COMPANY  & SET & Industrial M & 1991-07 & 2026-08 & 422 & 60.8\% & \textcolor{normalgreen}{Normal} \\
+901 & \ft{VCOM} & VINTCOM TECHNOLOGY PUBLIC  & mai & nan & 2017-12 & 2026-08 & 105 & 79.0\% & \textcolor{normalgreen}{Normal} \\
+902 & \ft{VGI} & VGI PUBLIC COMPANY LIMITED & SET & Media \& Publ & 2012-10 & 2026-08 & 167 & 82.4\% & \textcolor{normalgreen}{Normal} \\
+903 & \ft{VIBE} & VIBE SYNERGY GROUP PUBLIC  & mai & nan & 2026-05 & 2026-08 & 4 & 70.0\% & \textcolor{normalgreen}{Normal} \\
+904 & \ft{VIBHA} & VIBHAVADI MEDICAL CENTER P & SET & Health Care  & 1992-03 & 2026-08 & 414 & 62.7\% & \textcolor{normalgreen}{Normal} \\
+905 & \ft{VIH} & SRIVICHAIVEJVIVAT PUBLIC C & SET & Health Care  & 2012-05 & 2026-08 & 172 & 79.3\% & \textcolor{normalgreen}{Normal} \\
+906 & \ft{VL} & V.L. ENTERPRISE PUBLIC COM & mai & nan & 2019-05 & 2026-08 & 88 & 78.7\% & \textcolor{normalgreen}{Normal} \\
+907 & \ft{VNG} & VANACHAI GROUP PUBLIC COMP & SET & Construction & 1995-09 & 2026-08 & 372 & 68.2\% & \textcolor{normalgreen}{Normal} \\
+908 & \ft{VPO} & VICHITBHAN PALMOIL PUBLIC  & SET & Agribusiness & 2014-11 & 2026-08 & 142 & 77.0\% & \textcolor{normalgreen}{Normal} \\
+909 & \ft{VRANDA} & VERANDA RESORT PUBLIC COMP & SET & Tourism \& Le & 2019-05 & 2026-08 & 88 & 77.5\% & \textcolor{normalgreen}{Normal} \\
+910 & \ft{VS} & VISERVE ENTERPRISE PUBLIC  & mai & nan & 2024-11 & 2026-08 & 22 & 73.6\% & \textcolor{normalgreen}{Normal} \\
+911 & \ft{WACOAL} & THAI WACOAL PUBLIC COMPANY & SET & Fashion & 1990-01 & 2026-08 & 440 & 57.3\% & \textcolor{normalgreen}{Normal} \\
+912 & \ft{WARRIX} & Warrix Sport Public Compan & mai & nan & 2022-12 & 2026-08 & 45 & 77.4\% & \textcolor{normalgreen}{Normal} \\
+913 & \ft{WASH} & Laundry You Public Company & mai & nan & 2025-11 & 2026-08 & 10 & 21.3\% & \textcolor{normalgreen}{Normal} \\
+914 & \ft{WAVE} & WAVE EXPONENTIAL PUBLIC CO & SET & Professional & 1994-07 & 2026-08 & 386 & 61.4\% & \textcolor{normalgreen}{Normal} \\
+915 & \ft{WFX} & WORLD FLEX PUBLIC COMPANY  & SET & Fashion & 2021-12 & 2026-08 & 57 & 74.6\% & \textcolor{normalgreen}{Normal} \\
+916 & \ft{WGE} & WELL GRADED ENGINEERING PU & SET & Construction & 2020-11 & 2026-08 & 70 & 76.4\% & \textcolor{normalgreen}{Normal} \\
+917 & \ft{WHA} & WHA CORPORATION PUBLIC COM & SET & Property Dev & 2012-11 & 2026-08 & 166 & 87.7\% & \textcolor{normalgreen}{Normal} \\
+918 & \ft{WHABT} & WHA BUSINESS COMPLEX FREEH & SET & Property Fun & 2015-11 & 2026-08 & 130 & 67.4\% & \textcolor{normalgreen}{Normal} \\
+919 & \ft{WHAIR} & WHA INDUSTRIAL LEASEHOLD R & SET & Property Fun & 2022-06 & 2026-08 & 51 & 69.0\% & \textcolor{normalgreen}{Normal} \\
+920 & \ft{WHART} & WHA PREMIUM GROWTH FREEHOL & SET & Property Fun & 2014-12 & 2026-08 & 141 & 68.7\% & \textcolor{normalgreen}{Normal} \\
+921 & \ft{WHAUP} & WHA UTILITIES AND POWER PU & SET & Energy \& Uti & 2017-04 & 2026-08 & 113 & 86.9\% & \textcolor{normalgreen}{Normal} \\
+922 & \ft{WICE} & WICE LOGISTICS PUBLIC COMP & SET & Transportati & 2015-07 & 2026-08 & 134 & 79.3\% & \textcolor{normalgreen}{Normal} \\
+923 & \ft{WIIK} & WIIK PUBLIC COMPANY LIMITE & SET & Construction & 1996-02 & 2026-08 & 367 & 68.6\% & \textcolor{normalgreen}{Normal} \\
+924 & \ft{WIN} & WYNCOAST INDUSTRIAL PARK P & SET & Property Dev & 2005-12 & 2026-08 & 249 & 78.0\% & \textcolor{normalgreen}{Normal} \\
+925 & \ft{WINDOW} & Window Asia Public Company & SET & Construction & 2023-10 & 2026-08 & 35 & 75.6\% & \textcolor{normalgreen}{Normal} \\
+926 & \ft{WINMED} & WINNERGY MEDICAL PUBLIC CO & mai & nan & 2021-05 & 2026-08 & 64 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+927 & \ft{WINNER} & WINNER GROUP ENTERPRISE PU & mai & nan & 2013-10 & 2026-08 & 155 & 79.1\% & \textcolor{normalgreen}{Normal} \\
+928 & \ft{WORK} & WORKPOINT ENTERTAINMENT PU & SET & Media \& Publ & 2005-12 & 2026-08 & 249 & 74.6\% & \textcolor{normalgreen}{Normal} \\
+929 & \ft{WP} & WP ENERGY PUBLIC COMPANY L & SET & Energy \& Uti & 2018-02 & 2026-08 & 103 & 79.5\% & \textcolor{normalgreen}{Normal} \\
+930 & \ft{WPH} & WATTANAPAT HOSPITAL TRANG  & SET & Health Care  & 2017-10 & 2026-08 & 107 & 80.7\% & \textcolor{normalgreen}{Normal} \\
+931 & \ft{WSOL} & WSOL PUBLIC COMPANY LIMITE & SET & Commerce & 2025-05 & 2026-05 & 13 & 23.8\% & \textcolor{alertred}{\textbf{Distress}} \\
+932 & \ft{XBIO} & X BIOSCIENCE PUBLIC COMPAN & SET & Food \& Bever & 2025-01 & 2026-08 & 20 & 74.0\% & \textcolor{normalgreen}{Normal} \\
+933 & \ft{XO} & EXOTIC FOOD PUBLIC COMPANY & mai & nan & 2014-08 & 2026-08 & 145 & 79.2\% & \textcolor{normalgreen}{Normal} \\
+934 & \ft{XPG} & XSPRING CAPITAL PUBLIC COM & SET & Finance \& Se & 1995-03 & 2026-08 & 378 & 53.8\% & \textcolor{normalgreen}{Normal} \\
+935 & \ft{XYZ} & RSXYZ PUBLIC COMPANY LIMIT & SET & Information  & 2025-03 & 2026-08 & 18 & 76.9\% & \textcolor{normalgreen}{Normal} \\
+936 & \ft{YGG} & YGGDRAZIL GROUP PUBLIC COM & mai & nan & 2020-01 & 2026-08 & 80 & 75.9\% & \textcolor{normalgreen}{Normal} \\
+937 & \ft{YONG} & Yong Concrete Public Compa & mai & nan & 2022-08 & 2026-08 & 49 & 78.3\% & \textcolor{normalgreen}{Normal} \\
+938 & \ft{YUASA} & YUASA BATTERY (THAILAND) P & mai & nan & 2002-08 & 2026-08 & 289 & 27.1\% & \textcolor{normalgreen}{Normal} \\
+939 & \ft{ZAA} & ZALEKTA PUBLIC COMPANY LIM & SET & Media \& Publ & 2023-09 & 2026-08 & 36 & 75.6\% & \textcolor{normalgreen}{Normal} \\
+940 & \ft{ZEN} & ZEN CORPORATION GROUP PUBL & SET & Food \& Bever & 2019-02 & 2026-08 & 91 & 89.0\% & \textcolor{normalgreen}{Normal} \\
+941 & \ft{ZIGA} & ZIGA INNOVATION PUBLIC COM & mai & Industrial M & 2017-08 & 2026-08 & 109 & 78.2\% & \textcolor{normalgreen}{Normal} \\
+\end{longtable}
+
+\newpage
+\section{แกลเลอรีผลการวิเคราะห์ 20 บริษัทตัวอย่าง (20 Issuer Results)}
+
+ในส่วนนี้แสดงผลลัพธ์การประเมินความเสี่ยงและกราฟแท่ง 3 แผง (A. Repeated LIME, B. Exact SHAP, C. Distance from Median) ที่สร้างขึ้นจริงเป็นไฟล์ภาพ JPG ในโฟลเดอร์ \ft{tex_out/lime_jpg/} จำนวน 20 บริษัท:
+
+\subsection{1. บริษัท MJD (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.977180 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_MJD.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท MJD (งวด 2026-08)}
+\label{fig:MJD}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{2. บริษัท EP (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.939856 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_EP.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท EP (งวด 2026-08)}
+\label{fig:EP}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{3. บริษัท CI (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.917185 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_CI.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท CI (งวด 2026-08)}
+\label{fig:CI}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{4. บริษัท TPOLY (งวดประเมิน 2026-06)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.912605 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_TPOLY.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท TPOLY (งวด 2026-06)}
+\label{fig:TPOLY}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{5. บริษัท MUD (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.694279 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_MUD.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท MUD (งวด 2026-08)}
+\label{fig:MUD}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{6. บริษัท NRF (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.645700 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_NRF.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท NRF (งวด 2026-08)}
+\label{fig:NRF}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{7. บริษัท PF (งวดประเมิน 2026-05)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.477527 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_PF.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท PF (งวด 2026-05)}
+\label{fig:PF}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{8. บริษัท A (งวดประเมิน 2026-01)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.219422 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_A.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท A (งวด 2026-01)}
+\label{fig:A}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{9. บริษัท NWR (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.173947 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_NWR.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท NWR (งวด 2026-08)}
+\label{fig:NWR}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{10. บริษัท S (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.142071 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_S.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท S (งวด 2026-08)}
+\label{fig:S}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{11. บริษัท SST (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.135268 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_SST.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท SST (งวด 2026-08)}
+\label{fig:SST}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{12. บริษัท RICHY (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.126323 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_RICHY.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท RICHY (งวด 2026-08)}
+\label{fig:RICHY}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{13. บริษัท CHO (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.095854 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_CHO.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท CHO (งวด 2026-08)}
+\label{fig:CHO}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{14. บริษัท GRAND (งวดประเมิน 2026-03)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.095747 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_GRAND.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท GRAND (งวด 2026-03)}
+\label{fig:GRAND}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{15. บริษัท CAZ (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{alertred}{\textbf{HIGH RISK}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.072986 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_CAZ.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท CAZ (งวด 2026-08)}
+\label{fig:CAZ}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{16. บริษัท SQ (งวดประเมิน 2026-06)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{normalgreen}{\textbf{NORMAL}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.061345 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_SQ.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท SQ (งวด 2026-06)}
+\label{fig:SQ}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{17. บริษัท DTP (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{normalgreen}{\textbf{NORMAL}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.047973 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_DTP.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท DTP (งวด 2026-08)}
+\label{fig:DTP}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{18. บริษัท RML (งวดประเมิน 2026-08)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{normalgreen}{\textbf{NORMAL}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.026970 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_RML.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท RML (งวด 2026-08)}
+\label{fig:RML}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{19. บริษัท ECF (งวดประเมิน 2026-03)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{normalgreen}{\textbf{NORMAL}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.021155 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_ECF.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท ECF (งวด 2026-03)}
+\label{fig:ECF}
+\end{figure}
+\vspace{0.5em}
+
+
+\subsection{20. บริษัท PRIME (งวดประเมิน 2025-11)}
+\noindent
+\textbf{สถานะความเสี่ยง}: \textcolor{normalgreen}{\textbf{NORMAL}} \quad | \quad \textbf{ความน่าจะเป็นผิดนัด (PD)}: 0.013773 \quad | \quad \textbf{เส้นเตือนภัย (Threshold)}: 0.066002
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{tex_out/lime_jpg/lime_shap_PRIME.jpg}
+\caption{ผลการอธิบายความเสี่ยงด้วย LIME และ SHAP ของบริษัท PRIME (งวด 2025-11)}
+\label{fig:PRIME}
+\end{figure}
+\vspace{0.5em}
+
+\newpage
+\section{ซอร์สโค้ดฉบับเต็มของโปรแกรม (Full Source Code)}
+
+\subsection{1. ซอร์สโค้ด \ft{data_adapter.py}}
+\noindent
+ไฟล์โมดูล \ft{data_adapter.py} ทำหน้าที่เป็น Data Adapter ในการเชื่อมต่อตาราง SQLite และจัดการ Feature Engineering สำหรับทั้ง 2 ชุดข้อมูล:
+
+\begin{lstlisting}[language=Python]
+# -*- coding: utf-8 -*-
+"""
+data_adapter.py -- Unified Data Adapter for Thai Bond / Corporate Credit Panels.
+
+Provides a unified interface to load either:
+  [1] Legacy Panel: `ibond_33features_panel` (16,986 rows, 219 issuers)
+  [2] New 941-firm Panel: `ibond_33features_panel_941firm` (187,007 rows, 941 firms)
+"""
+from __future__ import annotations
+
+import os
+import sqlite3
+import numpy as np
+import pandas as pd
+from typing import Tuple, List, Optional, Dict, Any
+
+BOND_33_FEATURES = [
+    "amihud_monthly", "adj_illiq_kz", "percent_zero_days", "zero_days", "n_days",
+    "ROA", "ROE", "DE", "CurrentRatio", "QuickRatio", "CashRatio",
+    "EBITtoTA", "REtoTA", "WorkingCapitaltoTA", "TDTA", "LTDtoTA", "STDtoTA",
+    "cf_Interestcoverageratio", "acc_DebtServiceCoverageRatio",
+    "lnTotalAssets", "lnAge",
+    "Policyrate", "GDPgrowth", "UnemploymentratemodeledILOe",
+    "ESGScore", "GovernancePillarScore", "EnvironmentalPillarScore",
+    "SocialPillarScore", "IndependentBoardMembers", "AverageBoardTenure",
+]
+
+class DataAdapter:
+    DATASET_CHOICES = {
+        1: {
+            "name": "ของเก่า: ibond_33features_panel",
+            "table": "ibond_33features_panel",
+            "description": "16,986 issuer-months, 219 corporate bond issuers (2007-2026)"
+        },
+        2: {
+            "name": "ข้อมูลใหม่: ibond_33features_panel_941firm",
+            "table": "ibond_33features_panel_941firm",
+            "description": "187,007 firm-months, 941 firms across Thai capital market (2007-2026)"
+        }
+    }
+
+    @staticmethod
+    def resolve_db_path(custom_path: Optional[str] = None) -> str:
+        if custom_path and os.path.exists(custom_path):
+            return custom_path
+        
+        candidates = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "cmdf_credit.db"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "bond_financials.db"),
+            r"d:\tadgan_gaf\cmdf_credit_app\cmdf_credit.db",
+            r"d:\tadgan_gaf\cmdf_credit_app\thaibma\dataset\datasets_bond\cmdf_credit.db",
+            r"d:\tadgan_gaf\cmdf_credit_app\thaibma\dataset\datasets_bond\bond_financials.db",
+        ]
+        for p in candidates:
+            if os.path.exists(p):
+                return p
+        raise FileNotFoundError("Could not locate cmdf_credit.db or bond_financials.db.")
+
+    @classmethod
+    def show_menu(cls) -> int:
+        print("=" * 80)
+        print("เลือกชุดข้อมูล (Dataset Selection Menu):")
+        for key, meta in cls.DATASET_CHOICES.items():
+            print(f"  [{key}] {meta['name']} ({meta['description']})")
+        print("=" * 80)
+        while True:
+            try:
+                choice_str = input("กรุณาเลือก (1 หรือ 2) [default: 1]: ").strip()
+                if choice_str == "":
+                    return 1
+                choice = int(choice_str)
+                if choice in cls.DATASET_CHOICES:
+                    return choice
+                print("ตัวเลือกไม่ถูกต้อง กรุณาระบุ 1 หรือ 2")
+            except (EOFError, KeyboardInterrupt):
+                print("\nDefaulting to 1.")
+                return 1
+            except ValueError:
+                print("กรุณาใส่ตัวเลข 1 หรือ 2")
+
+    @classmethod
+    def load(cls, choice: int = 1, db_path: Optional[str] = None, verbose: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, List[str]]:
+        if choice not in cls.DATASET_CHOICES:
+            raise ValueError(f"Choice must be 1 or 2, got {choice}")
+            
+        resolved_db = cls.resolve_db_path(db_path)
+        table_name = cls.DATASET_CHOICES[choice]["table"]
+        
+        if verbose:
+            print(f"Connecting to DB: {resolved_db}")
+            print(f"Loading Table: '{table_name}' ({cls.DATASET_CHOICES[choice]['name']})")
+            
+        con = sqlite3.connect(resolved_db)
+        try:
+            cur = con.cursor()
+            cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = [r[0] for r in cur.fetchall()]
+            
+            if table_name not in tables:
+                csv_new = os.path.join(os.path.dirname(os.path.abspath(__file__)), "merged_panel_monthly_941firm_v20260823.csv")
+                if choice == 2 and os.path.exists(csv_new):
+                    if verbose:
+                        print(f"Table '{table_name}' not found, falling back to CSV: {csv_new}")
+                    panel = pd.read_csv(csv_new, low_memory=False)
+                else:
+                    raise RuntimeError(f"Table '{table_name}' not found in {resolved_db}")
+            else:
+                panel = pd.read_sql(f"SELECT * FROM {table_name}", con)
+                
+            dflt = pd.read_sql("SELECT * FROM ibond_default_payment", con) if "ibond_default_payment" in tables else pd.DataFrame()
+        finally:
+            con.close()
+            
+        if "symbol" in panel.columns and "issuer_code" not in panel.columns:
+            panel["issuer_code"] = panel["symbol"].astype(str)
+        if "name" in panel.columns and "issuer_name" not in panel.columns:
+            panel["issuer_name"] = panel["name"].astype(str)
+            
+        panel["month_dt"] = pd.to_datetime(panel["month"], errors="coerce")
+        
+        if choice == 1:
+            y = pd.Series(0, index=panel.index, dtype=int)
+            if not dflt.empty:
+                d = dflt.copy()
+                d["issuer_code"] = d["symbol"].astype(str).str.extract(r"^([A-Z]+)")[0]
+                d["payment_date"] = pd.to_datetime(d["payment_date"], errors="coerce")
+                first = (d.dropna(subset=["payment_date"])
+                         .groupby("issuer_code")["payment_date"].min())
+                ev = panel["issuer_code"].map(first)
+                gap = ((ev.dt.year - panel["month_dt"].dt.year) * 12
+                       + (ev.dt.month - panel["month_dt"].dt.month))
+                y = ((gap >= 0) & (gap <= 3)).fillna(False).astype(int)
+                panel["event_date"] = ev
+            elif "event" in panel.columns:
+                y = panel["event"].fillna(0).astype(int)
+            else:
+                y = (panel["DE"] > panel["DE"].quantile(0.90)).astype(int)
+        else:
+            if "y_pre3m" in panel.columns:
+                y = panel["y_pre3m"].fillna(0).astype(int)
+            elif "d_DP_RS" in panel.columns:
+                y = panel["d_DP_RS"].fillna(0).astype(int)
+            elif "d_Default_Payment" in panel.columns:
+                y = panel["d_Default_Payment"].fillna(0).astype(int)
+            else:
+                y = (panel["DE"] > panel["DE"].quantile(0.90)).astype(int)
+                
+        panel["y"] = y
+        
+        cols = [c for c in BOND_33_FEATURES if c in panel.columns]
+        X = panel[cols].apply(pd.to_numeric, errors="coerce")
+        X = X.fillna(X.median(numeric_only=True)).fillna(0.0)
+        
+        if verbose:
+            print(f"  Dataset loaded: {len(panel):,} rows | {panel['issuer_code'].nunique():,} firms | {len(cols)}/30 Features")
+            print(f"  Distress/Default events: {int(y.sum()):,} months ({y.mean()*100:.3f}%) from {panel.loc[y == 1, 'issuer_code'].nunique():,} firms")
+            
+        return panel, X, y, cols
+
+\end{lstlisting}
+
+\newpage
+\subsection{2. ซอร์สโค้ด \ft{lime33_adapter_panel.py}}
+\noindent
+ไฟล์โปรแกรมหลัก \ft{lime33_adapter_panel.py} จัดการเมนูตัวเลือก, เทรนโมเดล CatBoost แบบ Grouped OOF, รัน Repeated LIME, SHAP TreeExplainer, และบันทึกภาพผลลัพธ์ JPG:
+
+\begin{lstlisting}[language=Python]
+# -*- coding: utf-8 -*-
+"""
+lime33feature.py -- Per-issuer explanation of default probability with LIME and SHAP
+side by side, supporting both Legacy and New 941-Firm SQLite tables with JPG export.
+
+Supports:
+  - Menu selection: [1] Legacy (ibond_33features_panel) or [2] New (ibond_33features_panel_941firm)
+  - CLI switch: --dataset-choice 1 / --dataset-choice 2
+  - Output figures as JPG directly into `tex_out/lime_jpg/` (and PNG in `tex_out/lime_figs/`)
+  - Full LIME stability bars & Exact SHAP decomposition & Distance from median.
+
+USAGE:
+    python lime33feature.py                             # Interactive dataset menu + Top HIGH RISK issuer
+    python lime33feature.py --dataset-choice 1 --issuer A
+    python lime33feature.py --dataset-choice 2 --issuer PTT
+    python lime33feature.py --dataset-choice 2 --all-high-risk
+    python lime33feature.py --dataset-choice 2 --issuer MUD --repeats 10 --samples 5000
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import io
+import os
+import sys
+import warnings
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from PIL import Image
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import StratifiedGroupKFold
+
+try:
+    from catboost import CatBoostClassifier
+except ImportError:
+    CatBoostClassifier = None
+
+try:
+    from lime.lime_tabular import LimeTabularExplainer
+except ImportError:
+    LimeTabularExplainer = None
+
+import shap
+
+from data_adapter import DataAdapter, BOND_33_FEATURES
+
+warnings.filterwarnings("ignore")
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUTDIR_FIGS = os.path.join(HERE, "tex_out", "lime_figs")
+OUTDIR_JPG = os.path.join(HERE, "tex_out", "lime_jpg")
+os.makedirs(OUTDIR_FIGS, exist_ok=True)
+os.makedirs(OUTDIR_JPG, exist_ok=True)
+
+SEED = 42
+N_SAMPLES = 5000
+N_REPEATS = 8
+TOP = 10
+DEFAULT_WORKLOAD = 0.05
+
+_STATE_CACHE = {}
+
+def load_state(choice: int = 1, workload: float = DEFAULT_WORKLOAD, force: bool = False):
+    cache_key = (choice, workload)
+    if not force and cache_key in _STATE_CACHE:
+        return _STATE_CACHE[cache_key]
+
+    panel, X, y, cols = DataAdapter.load(choice=choice, verbose=True)
+    panel = panel.reset_index(drop=True)
+    A = X.to_numpy(float)
+    yv = y.to_numpy(int)
+    groups = panel["issuer_code"].astype(str).to_numpy()
+
+    # StratifiedGroupKFold out-of-fold models
+    fold_of = np.full(len(A), -1, int)
+    fold_models = {}
+    
+    n_pos = int(yv.sum())
+    n_splits = min(5, max(2, n_pos)) if n_pos >= 2 else 2
+    
+    cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=SEED)
+    for k, (tr, te) in enumerate(cv.split(A, yv, groups)):
+        if yv[tr].sum() < 1:
+            continue
+        sck = StandardScaler().fit(A[tr])
+        if CatBoostClassifier is not None:
+            mk = CatBoostClassifier(iterations=300, depth=3, learning_rate=0.05,
+                                    l2_leaf_reg=3.0, auto_class_weights="Balanced",
+                                    random_seed=SEED, verbose=0,
+                                    allow_writing_files=False).fit(sck.transform(A[tr]), yv[tr])
+        else:
+            from sklearn.ensemble import RandomForestClassifier
+            mk = RandomForestClassifier(n_estimators=200, max_depth=6, class_weight="balanced",
+                                        random_state=SEED).fit(sck.transform(A[tr]), yv[tr])
+        fold_models[k] = (sck, mk)
+        fold_of[te] = k
+
+    oof = np.full(len(A), np.nan)
+    for k, (sck, mk) in fold_models.items():
+        m = fold_of == k
+        oof[m] = mk.predict_proba(sck.transform(A[m]))[:, 1]
+    
+    nan_mask = np.isnan(oof)
+    if nan_mask.any() and len(fold_models) > 0:
+        sck_def, mk_def = list(fold_models.values())[0]
+        oof[nan_mask] = mk_def.predict_proba(sck_def.transform(A[nan_mask]))[:, 1]
+
+    last_rows = (panel.assign(_i=np.arange(len(panel)))
+                 .sort_values("month_dt").groupby("issuer_code").tail(1)["_i"]
+                 .to_numpy())
+    cross = oof[last_rows]
+    cross = cross[np.isfinite(cross)]
+    thr = float(np.quantile(cross, 1.0 - workload)) if len(cross) > 0 else 0.05
+
+    tab = pd.DataFrame({
+        "issuer": panel.loc[last_rows, "issuer_code"].to_numpy(),
+        "month": panel.loc[last_rows, "month"].to_numpy(),
+        "pd": oof[last_rows],
+        "status": np.where(oof[last_rows] >= thr, "HIGH RISK", "NORMAL")
+    }).sort_values("pd", ascending=False).reset_index(drop=True)
+
+    sc_full = StandardScaler().fit(A)
+    if CatBoostClassifier is not None:
+        cb_full = CatBoostClassifier(iterations=300, depth=3, learning_rate=0.05,
+                                     l2_leaf_reg=3.0, auto_class_weights="Balanced",
+                                     random_seed=SEED, verbose=0,
+                                     allow_writing_files=False).fit(sc_full.transform(A), yv)
+    else:
+        from sklearn.ensemble import RandomForestClassifier
+        cb_full = RandomForestClassifier(n_estimators=200, max_depth=6, class_weight="balanced",
+                                         random_state=SEED).fit(sc_full.transform(A), yv)
+
+    state = {
+        "panel": panel, "X": X, "y": y, "cols": cols, "A": A, "yv": yv,
+        "fold_of": fold_of, "fold_models": fold_models, "oof": oof,
+        "thr": thr, "tab": tab, "sc": sc_full, "model": cb_full,
+        "dataset_choice": choice
+    }
+    _STATE_CACHE[cache_key] = state
+    return state
+
+def issuer_row(S, issuer):
+    p = S["panel"]
+    rows = p.index[p["issuer_code"] == issuer].to_numpy()
+    if len(rows) == 0:
+        return None, None, None
+    last = rows[np.argmax(p.loc[rows, "month_dt"].to_numpy())]
+    k = int(S["fold_of"][last])
+    sck, mk = S["fold_models"].get(k, (S["sc"], S["model"]))
+    return last, sck, mk
+
+def predict_fn(sck, mk):
+    def f(B):
+        B = np.asarray(B, float)
+        if B.ndim == 1:
+            B = B[None, :]
+        return mk.predict_proba(sck.transform(B))
+    return f
+
+def run_lime(S, last, sck, mk, samples=N_SAMPLES, repeats=N_REPEATS, seed=SEED):
+    A, cols = S["A"], S["cols"]
+    x0 = A[last]
+    f = predict_fn(sck, mk)
+
+    runs = []
+    for r in range(repeats):
+        ex = LimeTabularExplainer(
+            A, feature_names=cols, class_names=["no event", "event"],
+            mode="classification", discretize_continuous=True,
+            random_state=seed + r)
+        e = ex.explain_instance(x0, f, num_features=len(cols), num_samples=samples)
+        w = dict(e.as_map()[1])
+        runs.append([w.get(j, 0.0) for j in range(len(cols))])
+
+    M = np.array(runs)
+    return pd.DataFrame(dict(
+        feature=cols,
+        lime=M.mean(0), lime_sd=M.std(0, ddof=1),
+        lime_lo=M.min(0), lime_hi=M.max(0)
+    ))
+
+def run_shap(S, last, sck, mk, background=200, seed=SEED):
+    A, cols = S["A"], S["cols"]
+    rng = np.random.default_rng(seed)
+    bg = A[rng.choice(len(A), size=min(background, len(A)), replace=False)]
+
+    try:
+        ex = shap.TreeExplainer(mk, shap.maskers.Independent(
+            sck.transform(bg), max_samples=background),
+            model_output="probability")
+        sv = ex.shap_values(sck.transform(A[last][None, :]))
+    except Exception:
+        ex = shap.Explainer(mk.predict_proba, sck.transform(bg))
+        sv = ex(sck.transform(A[last][None, :])).values[:, :, 1]
+
+    sv = np.asarray(sv)
+    if sv.ndim == 3:
+        sv = sv[0, :, -1]
+    elif sv.ndim == 2:
+        sv = sv[0]
+    base = float(np.ravel(getattr(ex, "expected_value", [0.05]))[-1]) if hasattr(ex, "expected_value") else 0.05
+    return pd.DataFrame(dict(feature=cols, shap=np.ravel(sv)[:len(cols)])), base
+
+def explain(S, issuer, samples=N_SAMPLES, repeats=N_REPEATS, seed=SEED):
+    last, sck, mk = issuer_row(S, issuer)
+    if last is None:
+        return None
+    A, cols = S["A"], S["cols"]
+    x0 = A[last]
+    pd_now = float(predict_fn(sck, mk)(x0[None, :])[0, 1])
+
+    L = run_lime(S, last, sck, mk, samples, repeats, seed)
+    Sh, base = run_shap(S, last, sck, mk, seed=seed)
+    d = L.merge(Sh, on="feature")
+
+    med = np.median(A, axis=0)
+    sd = A.std(0, ddof=1)
+    pct = np.array([100.0 * (A[:, j] < x0[j]).mean() for j in range(len(cols))])
+    d["value"] = x0
+    d["median"] = med
+    d["pct_of_median"] = np.where(np.abs(med) > 1e-12,
+                                  100.0 * (x0 - med) / np.abs(med), np.nan)
+    d["sd_from_median"] = np.where(sd > 0, (x0 - med) / sd, 0.0)
+    d["percentile"] = pct
+
+    tot = np.abs(d.shap).sum()
+    d["shap_share"] = 100.0 * d.shap / tot if tot > 0 else 0.0
+    d["shap_pct_of_pd"] = 100.0 * d.shap / pd_now if pd_now > 0 else np.nan
+    ltot = np.abs(d.lime).sum()
+    d["lime_share"] = 100.0 * d.lime / ltot if ltot > 0 else 0.0
+
+    d["dir_lime"] = np.where(d.lime > 0, "เพิ่ม", np.where(d.lime < 0, "ลด", "-"))
+    d["dir_shap"] = np.where(d.shap > 0, "เพิ่ม", np.where(d.shap < 0, "ลด", "-"))
+    d["agree"] = np.sign(d.lime) == np.sign(d.shap)
+    d["lime_stable"] = np.sign(d.lime_lo) == np.sign(d.lime_hi)
+
+    d = d.sort_values("shap", key=np.abs, ascending=False).reset_index(drop=True)
+    return dict(issuer=issuer, row=int(last), pd_now=pd_now, base=base,
+                thr=S["thr"], month=str(S["panel"].loc[last, "month"]),
+                table=d, dataset_choice=S["dataset_choice"])
+
+def render_figure(res, top=TOP, dpi=130):
+    d = res["table"].head(top).iloc[::-1]
+    y = np.arange(len(d))
+    fig, axes = plt.subplots(1, 3, figsize=(15.4, 0.46 * len(d) + 3.1),
+                             gridspec_kw={"width_ratios": [1.05, 1.05, 0.9]})
+
+    # A. LIME
+    ax = axes[0]
+    col = ["#b91c1c" if v > 0 else "#1d4ed8" for v in d.lime]
+    err = np.vstack([(d.lime - d.lime_lo).to_numpy(),
+                     (d.lime_hi - d.lime).to_numpy()])
+    ax.barh(y, d.lime, color=col, alpha=0.88,
+            xerr=np.abs(err), error_kw=dict(ecolor="#334155", lw=1.0, capsize=2.5))
+    for i, (v, ok) in enumerate(zip(d.lime, d.lime_stable)):
+        if not ok:
+            ax.text(0, i, "  unstable", va="center", fontsize=7.5,
+                    color="#92400e", fontweight="bold")
+    ax.axvline(0, color="#111827", lw=1.0)
+    ax.set_yticks(y)
+    ax.set_yticklabels(d.feature, fontsize=8.5)
+    ax.set_xlabel("LIME surrogate weight", fontsize=9)
+    ax.set_title("A. LIME\nwhiskers span the range over seeds",
+                 fontsize=10.5, fontweight="bold")
+    ax.grid(alpha=0.3, axis="x")
+
+    # B. SHAP
+    ax = axes[1]
+    col = ["#b91c1c" if v > 0 else "#1d4ed8" for v in d.shap]
+    ax.barh(y, d.shap, color=col, alpha=0.88)
+    for i, (v, s) in enumerate(zip(d.shap, d.shap_pct_of_pd)):
+        ax.text(v, i, f"  {v:+.5f} ({s:+.1f}%)", va="center", fontsize=7.6,
+                color="#111827")
+    ax.axvline(0, color="#111827", lw=1.0)
+    ax.set_yticks(y)
+    ax.set_yticklabels([])
+    ax.set_xlabel("SHAP contribution (probability units)", fontsize=9)
+    ax.set_title(f"B. SHAP\nadds back to the PD exactly, base {res['base']:.5f}",
+                 fontsize=10.5, fontweight="bold")
+    ax.grid(alpha=0.3, axis="x")
+
+    # C. Position vs Median
+    ax = axes[2]
+    v = d.sd_from_median.to_numpy()
+    col = ["#ea580c" if abs(t) >= 1 else "#94a3b8" for t in v]
+    ax.barh(y, v, color=col, alpha=0.88)
+    for i, (t, p, pm) in enumerate(zip(v, d.percentile, d.pct_of_median)):
+        lab = f"  p{p:.0f}"
+        if np.isfinite(pm) and abs(pm) < 1e5:
+            lab += f", {pm:+.0f}% vs median"
+        ax.text(t, i, lab, va="center", fontsize=7.4, color="#111827")
+    ax.axvline(0, color="#111827", lw=1.0)
+    ax.set_yticks(y)
+    ax.set_yticklabels([])
+    ax.set_xlabel("distance from the panel median (SD)", fontsize=9)
+    ax.set_title("C. where this issuer sits on each determinant",
+                 fontsize=10.5, fontweight="bold")
+    ax.grid(alpha=0.3, axis="x")
+
+    agree = int(res["table"].head(top).agree.sum())
+    ds_label = "Dataset 2 (941 firms)" if res.get("dataset_choice") == 2 else "Dataset 1 (Legacy 33 features)"
+    fig.suptitle(
+        f"[{ds_label}]  {res['issuer']}   month {res['month']}   "
+        f"PD = {res['pd_now']:.6f}   review threshold = {res['thr']:.6f}   "
+        f"agree = {agree}/{top}\n"
+        f"red = pushes PD up    blue = pulls PD down",
+        fontsize=12, fontweight="bold")
+    fig.tight_layout(rect=[0, 0, 1, 0.90])
+    return fig
+
+def save_figure_jpg_png(fig, issuer: str):
+    jpg_path = os.path.join(OUTDIR_JPG, f"lime_shap_{issuer}.jpg")
+    png_path = os.path.join(OUTDIR_FIGS, f"lime_shap_{issuer}.png")
+    
+    fig.savefig(png_path, dpi=130, bbox_inches="tight", pad_inches=0.10)
+    im = Image.open(png_path).convert("RGB")
+    im.save(jpg_path, "JPEG", quality=95)
+    plt.close(fig)
+    return jpg_path, png_path
+
+def report(res, top=TOP):
+    d = res["table"]
+    ds_name = "Dataset 2: 941 firms" if res.get("dataset_choice") == 2 else "Dataset 1: Legacy"
+    bar = "=" * 100
+    print(bar)
+    print(f"[{ds_name}] {res['issuer']}   เดือน {res['month']}   PD = {res['pd_now']:.6f}   "
+          f"เส้นเตือนภัย = {res['thr']:.6f}   "
+          f"{'เหนือเส้น' if res['pd_now'] >= res['thr'] else 'ใต้เส้น'}")
+    print(f"ฐานของ SHAP (ค่าเฉลี่ยของโมเดล) = {res['base']:.6f}   "
+          f"ผลรวม SHAP = {d.shap.sum():+.6f}   "
+          f"ฐาน + ผลรวม = {res['base'] + d.shap.sum():.6f}")
+    print(bar)
+    print(f"{'ตัวแปร':<28} {'ค่าปัจจุบัน':>12} {'%จากกลาง':>10} {'SD':>7} "
+          f"{'SHAP':>11} {'%ของPD':>9} {'LIME':>10} {'ทิศ':>6} {'ตรงกัน':>7}")
+    for _, r in d.head(top).iterrows():
+        pm = f"{r.pct_of_median:+.0f}%" if np.isfinite(r.pct_of_median) and abs(r.pct_of_median) < 1e5 else "-"
+        flag = "ใช่" if r.agree else "ไม่"
+        note = "" if r.lime_stable else " *"
+        print(f"{r.feature:<28} {r.value:>12.4f} {pm:>10} "
+              f"{r.sd_from_median:>+7.2f} {r.shap:>+11.6f} "
+              f"{r.shap_pct_of_pd:>+8.1f}% {r.lime:>+10.5f} "
+              f"{r.dir_shap:>6} {flag:>7}{note}")
+    n_bad = int((~d.head(top).lime_stable).sum())
+    if n_bad:
+        print(f"\n  * มี {n_bad} ตัวที่ค่า LIME เปลี่ยนเครื่องหมายเมื่อรันคนละ seed ไม่ควรนำไปตีความ")
+    agree = int(d.head(top).agree.sum())
+    print(f"\n  สองวิธีเห็นตรงกันเรื่องทิศทาง {agree} จาก {top} ตัว")
+    up = d.head(top)[d.head(top).shap > 0]
+    if len(up):
+        print(f"  ตัวที่ดัน PD ขึ้นมากสุด: {up.iloc[0].feature} "
+              f"({up.iloc[0].shap:+.6f} คิดเป็น {up.iloc[0].shap_pct_of_pd:+.1f}% ของ PD)")
+    dn = d.head(top)[d.head(top).shap < 0]
+    if len(dn):
+        print(f"  ตัวที่ดึง PD ลงมากสุด : {dn.iloc[0].feature} "
+              f"({dn.iloc[0].shap:+.6f} คิดเป็น {dn.iloc[0].shap_pct_of_pd:+.1f}% ของ PD)")
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="LIME กับ SHAP เทียบกัน บนแผง 33 ตัวแปรจริง (รองรับทั้งชุดเก่าและชุดใหม่ 941 บริษัท)")
+    ap.add_argument("--dataset-choice", "-d", type=int, choices=[1, 2], default=None,
+                    help="เลือกชุดข้อมูล: 1 = ของเก่า (ibond_33features_panel), 2 = ชุดใหม่ (ibond_33features_panel_941firm)")
+    ap.add_argument("--issuer", type=str, default=None)
+    ap.add_argument("--all-high-risk", action="store_true", help="ทำทุกรายที่อยู่เหนือเส้นเตือนภัย")
+    ap.add_argument("--workload", type=float, default=DEFAULT_WORKLOAD)
+    ap.add_argument("--top", type=int, default=TOP)
+    ap.add_argument("--samples", type=int, default=N_SAMPLES)
+    ap.add_argument("--repeats", type=int, default=N_REPEATS)
+    ap.add_argument("--seed", type=int, default=SEED)
+    ap.add_argument("--no-figure", action="store_true")
+    a = ap.parse_args()
+
+    choice = a.dataset_choice
+    if choice is None:
+        if sys.stdin.isatty():
+            choice = DataAdapter.show_menu()
+        else:
+            choice = 1
+
+    print(f"\n--- เริ่มการทำงานด้วยชุดข้อมูล: [{choice}] {DataAdapter.DATASET_CHOICES[choice]['name']} ---")
+    S = load_state(choice=choice, workload=a.workload)
+    tab = S["tab"]
+    high = tab[tab.status == "HIGH RISK"].issuer.tolist()
+    
+    if a.all_high_risk:
+        targets = high
+    elif a.issuer:
+        targets = [a.issuer]
+    else:
+        targets = high[:1] if len(high) > 0 else tab.issuer.head(1).tolist()
+
+    print(f"เส้นเตือนภัยที่กำลังคน {a.workload:.0%} = {S['thr']:.6f} | HIGH RISK {len(high)} ราย")
+    print(f"LIME: สุ่ม {a.samples:,} จุด ทำซ้ำ {a.repeats} seed | SHAP: TreeExplainer\n")
+
+    allrows = []
+    for iss in targets:
+        res = explain(S, iss, a.samples, a.repeats, a.seed)
+        if res is None:
+            print(f"{iss}: ไม่มีข้อมูลในแผง")
+            continue
+        report(res, a.top)
+        t = res["table"].copy()
+        t.insert(0, "issuer", iss)
+        t.insert(1, "pd_now", res["pd_now"])
+        allrows.append(t)
+        if not a.no_figure:
+            fig = render_figure(res, a.top)
+            jpg_f, png_f = save_figure_jpg_png(fig, iss)
+            print(f"  [Output JPG] -> {jpg_f}")
+            print(f"  [Output PNG] -> {png_f}")
+        print()
+
+    if allrows:
+        out = pd.concat(allrows, ignore_index=True)
+        csv_fn = os.path.join(HERE, "tex_out", f"lime_shap_ds{choice}.csv")
+        out.to_csv(csv_fn, index=False)
+        print(f"เขียนตารางสรุป {csv_fn} ({len(out):,} แถว จาก {len(allrows)} บริษัท)")
+
+if __name__ == "__main__":
+    main()
+
+\end{lstlisting}
+
+\end{document}

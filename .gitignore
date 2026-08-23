@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+*.aux
+*.out
+*.toc
+*.synctex.gz
+.pytest_cache/
+.vscode/
+.idea/
+
+# Ignore raw unzipped database > 100MB (auto-extracted from lime_credit.db.zip on first run)
+lime_credit.db
+cmdf_credit.db
+bond_financials.db
